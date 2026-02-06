@@ -1,9 +1,7 @@
-Full Absolute Path: `dimay2/committest/CommitTest-aabff9bfb5c8a1d6ba18613c5575771356417b0c/README.md`
-
 ```text
 # AWS Lab 8 — EKS Services & Pipeline
 
-This repository contains the Terraform infrastructure, Helm charts, and application code required to provision an AWS environment with an EKS cluster (Fargate), strictly private networking, ArgoCD for continuous deployment, and a sample Python web application backed by MySQL.
+This repository contains the Terraform infrastructure, Helm charts, and application code required to provision an AWS environment with an EKS cluster (Fargate), strictly private networking, ArgoCD for continuous deployment, Monitoring (Kubernetes Dashboard), and a sample Python web application backed by MySQL.
 
 ## Table of contents
 - [Prerequisites & Cleanup](#prerequisites--cleanup)
@@ -59,7 +57,7 @@ fi
 
 ## Repository layout
 
-* `commitlab-infra/` — Terraform for **Private-Only** networking, EKS v1.30, ArgoCD, RDS, and VPC Endpoints.
+* `commitlab-infra/` — Terraform for **Private-Only** networking, EKS v1.30, ArgoCD, Monitoring (Dashboard), RDS, and VPC Endpoints.
 * `app/backend/` — Backend application and Dockerfile.
 * `app/frontend/` — Frontend application and Dockerfile.
 * `helm/` — Helm chart for the application deployment.
@@ -189,15 +187,34 @@ aws ssm start-session --target $INSTANCE_ID --document-name AWS-StartPortForward
 * Click the padlock icon to verify the certificate is issued by **"CommitLab DevOps"**.
 
 
-4. **Verify ArgoCD Access:**
-* **Retrieve Password:** Run this locally or on the Jumpbox (if kubectl is installed there):
+4. **Verify Monitoring (Dashboard):**
+* **Create Token:** Run this to generate a login token for the Dashboard:
+```bash
+kubectl create token admin-user -n monitoring
+
+```
+
+
+* **Proxy Dashboard:**
+```bash
+kubectl port-forward svc/kubernetes-dashboard-kong-proxy -n monitoring 8443:443
+
+```
+
+
+* Open `https://localhost:8443` in your browser.
+* Paste the token to log in. You should see CPU/Memory usage metrics for your pods (powered by Metrics Server).
+
+
+5. **Verify ArgoCD Access:**
+* **Retrieve Password:**
 ```bash
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
 ```
 
 
-* **Access UI:** Since we did not create an Ingress for ArgoCD, use port-forwarding:
+* **Access UI:**
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 
