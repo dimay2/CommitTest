@@ -1,29 +1,26 @@
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.10" # May 2024 Stable (v20 support for 1.30)
+  version = "~> 20.10"
 
   cluster_name    = var.cluster_name
-  cluster_version = "1.30" # STRICT REQUIREMENT
+  cluster_version = "1.30"
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
   cluster_endpoint_public_access = true
-
-  # Ensure creator has admin permissions
   enable_cluster_creator_admin_permissions = true
-  
-  # Use API_AND_CONFIG_MAP for maximum compatibility
   authentication_mode = "API_AND_CONFIG_MAP"
 
-  # Fargate Profile configuration
+  # Updated Fargate Profile to include 'argocd'
   fargate_profiles = {
     default = {
       name = "default"
       selectors = [
         { namespace = "default" },
         { namespace = "kube-system" },
-        { namespace = "monitoring" }
+        { namespace = "monitoring" },
+        { namespace = "argocd" }
       ]
     }
   }
@@ -31,9 +28,9 @@ module "eks" {
 
 module "lb_role" {
   source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.39" # May 2024 Stable
+  version = "~> 5.39"
   
-  role_name                              = "${var.cluster_name}-alb-controller"
+  role_name = "${var.cluster_name}-alb-controller"
   attach_load_balancer_controller_policy = true
 
   oidc_providers = {

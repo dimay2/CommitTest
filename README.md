@@ -1,11 +1,9 @@
-This update modifies the **Deploy application (Helm)** section to automatically retrieve the certificate ARN using Terraform, and adds a specific **SSL Verification** step to the **Verify deployment** section.
-
-**File Path:** `dimay2/committest/CommitTest-aabff9bfb5c8a1d6ba18613c5575771356417b0c/README.md`
+Full Absolute Path: `dimay2/committest/CommitTest-aabff9bfb5c8a1d6ba18613c5575771356417b0c/README.md`
 
 ```text
 # AWS Lab 8 — EKS Services & Pipeline
 
-This repository contains the Terraform infrastructure, Helm charts, and application code required to provision an AWS environment with an EKS cluster (Fargate), strictly private networking, and a sample Python web application backed by MySQL.
+This repository contains the Terraform infrastructure, Helm charts, and application code required to provision an AWS environment with an EKS cluster (Fargate), strictly private networking, ArgoCD for continuous deployment, and a sample Python web application backed by MySQL.
 
 ## Table of contents
 - [Prerequisites & Cleanup](#prerequisites--cleanup)
@@ -61,7 +59,7 @@ fi
 
 ## Repository layout
 
-* `commitlab-infra/` — Terraform for **Private-Only** networking, EKS v1.30, RDS, and VPC Endpoints.
+* `commitlab-infra/` — Terraform for **Private-Only** networking, EKS v1.30, ArgoCD, RDS, and VPC Endpoints.
 * `app/backend/` — Backend application and Dockerfile.
 * `app/frontend/` — Frontend application and Dockerfile.
 * `helm/` — Helm chart for the application deployment.
@@ -155,7 +153,7 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
 
 ## Deploy application (Helm)
 
-The Terraform output now automatically provides the ARN of the self-signed certificate generated during infrastructure provisioning.
+The Terraform output automatically provides the ARN of the self-signed certificate generated during infrastructure provisioning.
 
 ```bash
 # Create Kubernetes secret for DB credentials
@@ -185,8 +183,31 @@ aws ssm start-session --target $INSTANCE_ID --document-name AWS-StartPortForward
 
 
 2. Connect via RDP to `localhost:53389`.
-3. **Verify Application Access:** Open a browser on the Windows instance and navigate to `https://Lab-commit-task.commit.local`.
-4. **Verify SSL Certificate:** Click the padlock icon in the browser address bar. View the certificate details and confirm it was issued by **"CommitLab DevOps"** (the self-signed authority created by Terraform).
+3. **Verify Application Access:**
+* Open Chrome on the Windows instance.
+* Navigate to `https://Lab-commit-task.commit.local`.
+* Click the padlock icon to verify the certificate is issued by **"CommitLab DevOps"**.
+
+
+4. **Verify ArgoCD Access:**
+* **Retrieve Password:** Run this locally or on the Jumpbox (if kubectl is installed there):
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+```
+
+
+* **Access UI:** Since we did not create an Ingress for ArgoCD, use port-forwarding:
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+```
+
+
+* Open `https://localhost:8080` in your browser.
+* Login with user `admin` and the retrieved password.
+
+
 
 ## Notes & security
 
