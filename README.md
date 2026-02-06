@@ -1,155 +1,131 @@
-I have cleaned up the formatting and corrected the syntax errors (particularly the broken ECR URLs) from your notes to create a professional `README.md` file.
+# AWS Lab 8 — EKS Services & Pipeline
 
-```markdown
-# AWS Lab 8 - EKS Services & Pipeline
+This repository contains Terraform, Helm, and application code used to provision an AWS environment with an EKS cluster (Fargate), private networking, and a sample Python web application backed by MySQL. The README below provides a concise, GitHub-friendly guide to prerequisites, deployment steps, and verification.
 
-This project deploys a secure AWS environment featuring an EKS Fargate cluster, private networking, and a Python-based web application with a MySQL backend. Infrastructure is provisioned via Terraform, and deployment is managed via Helm.
-
-## Table of Contents
-* [Install Tools & Setup](#01-install-tools-and-setup-directories)
-* [Secure Environment Variables](#02-set-secure-environment-variables)
-* [Terraform Backend Setup](#03-manual-creation-of-terraform-backend-s3--dynamodb-in-aws)
-* [Infrastructure Deployment](#04-create-main-infra-with-terraform)
-* [Environment Configuration](#05-environment-configuration)
-* [Build & Push Images](#06-build-and-push-images)
-* [Install Load Balancer Controller](#07-install-load-balancer-controller)
-* [Deploy Application](#08-deploy-application)
-* [Verification](#09-verification)
+## Table of contents
+- [Prerequisites](#prerequisites)
+- [Repository layout](#repository-layout)
+- [Quick start](#quick-start)
+- [Terraform backend (S3 + DynamoDB)](#terraform-backend-s3--dynamodb)
+- [Build & push container images](#build--push-container-images)
+- [Install AWS Load Balancer Controller](#install-aws-load-balancer-controller)
+- [Deploy application (Helm)](#deploy-application-helm)
+- [Verify deployment](#verify-deployment)
+- [Notes & security](#notes--security)
 
 ---
 
-## 01: Install Tools and setup directories
-Run the following commands in AWS CloudShell to install Terraform, Helm 3, and create necessary directories.
+## Prerequisites
+- Git
+- Terraform (v1.0+)
+- Helm 3
+- AWS CLI v2
+- kubectl
+- Docker (for building images)
+- An AWS account with permissions to create IAM, ECR, S3, DynamoDB, EKS, and ACM resources
+
+Install examples (CloudShell / macOS / Linux):
 
 ```bash
-# Install Terraform
-sudo yum install -y yum-utils
-sudo yum-config-manager --add-repo [https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo](https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo)
-sudo yum -y install terraform
-
-# Install Helm 3
-curl [https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3](https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3) | bash
-
-# Verify installation
+# Terraform
 terraform -version
+
+# Helm
 helm version
 
-# Create dir for Terraform files
-mkdir -p ~/commitlab-infra
+# AWS CLI
+aws --version
 
-# Create dir for app
-mkdir -p ~/app/backend ~/app/frontend
+# kubectl
+kubectl version --client
 
-# Create dir for Helm
-mkdir -p ~/helm/templates
-
+# Docker
+docker --version
 ```
 
-## 02: Set Secure Environment Variables
+## Repository layout
 
-Set the database password securely in the session memory.
+- `commitlab-infra/` — Terraform for networking, EKS, RDS, etc.
+- `app/backend/` — Backend app and Dockerfile
+- `app/frontend/` — Frontend app and Dockerfile
+- `helm/` — Helm chart for the application
+
+## Quick start
+
+1. Configure required environment variables (example):
 
 ```bash
-# Set the DB Password as an environment variable
-# Terraform will automatically read this because of the TF_VAR_ prefix
-export TF_VAR_db_password="SuperSecretPass123!Secure"
-
+export TF_VAR_db_password="YOUR_DB_PASSWORD"
+export AWS_REGION=us-east-1
+export TF_STATE_BUCKET="<your-unique-terraform-bucket>"
+export TF_LOCK_TABLE="<your-terraform-lock-table>"
 ```
 
-## 03: Manual creation of Terraform backend (S3 + DynamoDB) in AWS
+2. Create Terraform backend (S3 bucket + DynamoDB table) — see next section.
 
-Create the S3 bucket for state storage and DynamoDB table for state locking.
-
-```bash
-# 1. Set your unique bucket name (must be globally unique)
-export TF_STATE_BUCKET="lab8-terraform-state"
-export TF_LOCK_TABLE="lab8-terraform-locks"
-export AWS_REGION="us-east-1"  # Change if needed
-
-# 2. Create S3 Bucket
-aws s3 mb s3://$TF_STATE_BUCKET --region $AWS_REGION
-aws s3api put-bucket-versioning --bucket $TF_STATE_BUCKET --versioning-configuration Status=Enabled
-
-# 3. Create DynamoDB Table for State Locking
-aws dynamodb create-table \
-    --table-name $TF_LOCK_TABLE \
-    --attribute-definitions AttributeName=LockID,AttributeType=S \
-    --key-schema AttributeName=LockID,KeyType=HASH \
-    --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
-
-# 4. Variables verification
-echo "Your State Bucket Name is: $TF_STATE_BUCKET"
-echo "Lock Table:   $TF_LOCK_TABLE"
-
-```
-
-## 04: Create main Infra with Terraform
-
-Initialize and apply the Terraform configuration.
+3. Initialize and apply Terraform (from `commitlab-infra`):
 
 ```bash
-cd ~/commitlab-infra
-
-# Ensure DB Password variable is set
-if [ -z "$TF_VAR_db_password" ]; then
-  echo "ERROR: TF_VAR_db_password is not set. Run 'export TF_VAR_db_password=...'"
-  exit 1
-fi
-
-terraform init \
-    -backend-config="bucket=$TF_STATE_BUCKET" \
-    -backend-config="region=$AWS_REGION" \
-    -backend-config="dynamodb_table=$TF_LOCK_TABLE"
-
+cd commitlab-infra
+terraform init \ 
+  -backend-config="bucket=$TF_STATE_BUCKET" \ 
+  -backend-config="region=$AWS_REGION" \ 
+  -backend-config="dynamodb_table=$TF_LOCK_TABLE"
 terraform plan -out=tfplan
 terraform apply tfplan
-
 ```
 
-## 05: Environment configuration
-
-Retrieve outputs from Terraform and configure access to the EKS cluster.
+4. Configure kubectl for the created EKS cluster:
 
 ```bash
 export CLUSTER_NAME=$(terraform output -raw cluster_name)
 export REGION=$(terraform output -raw region)
-export RDS_ENDPOINT=$(terraform output -raw rds_endpoint)
-export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
 aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
-
 ```
 
-## 06: Build and Push Images
+## Terraform backend (S3 + DynamoDB)
 
-Authenticate with ECR and push the application images.
+Create a versioned S3 bucket and a DynamoDB table for state locking:
 
 ```bash
-aws ecr create-repository --repository-name lab-backend
-aws ecr create-repository --repository-name lab-frontend
+aws s3 mb s3://$TF_STATE_BUCKET --region $AWS_REGION
+aws s3api put-bucket-versioning --bucket $TF_STATE_BUCKET --versioning-configuration Status=Enabled
+
+aws dynamodb create-table \
+  --table-name $TF_LOCK_TABLE \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+```
+
+## Build & push container images
+
+Create ECR repos and push images (replace variables accordingly):
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws ecr create-repository --repository-name lab-backend || true
+aws ecr create-repository --repository-name lab-frontend || true
 
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 
 # Backend
-cd ~/app/backend
+cd app/backend
 docker build -t lab-backend .
-docker tag lab-backend:latest $ACCOUNT_ID.dkr.ecr.$[REGION.amazonaws.com/lab-backend:latest](https://REGION.amazonaws.com/lab-backend:latest)
-docker push $ACCOUNT_ID.dkr.ecr.$[REGION.amazonaws.com/lab-backend:latest](https://REGION.amazonaws.com/lab-backend:latest)
+docker tag lab-backend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/lab-backend:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/lab-backend:latest
 
 # Frontend
-cd ~/app/frontend
+cd ../frontend
 docker build -t lab-frontend .
-docker tag lab-frontend:latest $ACCOUNT_ID.dkr.ecr.$[REGION.amazonaws.com/lab-frontend:latest](https://REGION.amazonaws.com/lab-frontend:latest)
-docker push $ACCOUNT_ID.dkr.ecr.$[REGION.amazonaws.com/lab-frontend:latest](https://REGION.amazonaws.com/lab-frontend:latest)
-
+docker tag lab-frontend:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/lab-frontend:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/lab-frontend:latest
 ```
 
-## 07: Install Load Balancer Controller
-
-Deploy the AWS Load Balancer Controller to the cluster using Helm.
+## Install AWS Load Balancer Controller
 
 ```bash
-helm repo add eks [https://aws.github.io/eks-charts](https://aws.github.io/eks-charts)
+helm repo add eks https://aws.github.io/eks-charts
 helm repo update
 
 helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
@@ -157,90 +133,49 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   --set clusterName=$CLUSTER_NAME \
   --set serviceAccount.create=false \
   --set serviceAccount.name=aws-load-balancer-controller
-
 ```
 
-## 08: Deploy Application
+## Deploy application (Helm)
 
-Generate certificates, create secrets, and deploy the application chart.
+Create Kubernetes secrets and install the Helm chart:
 
 ```bash
-# 1. Generate Cert
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=Lab-commit-task.commit.local"
-CERT_ARN=$(aws acm import-certificate --certificate fileb://cert.pem --private-key fileb://key.pem --query CertificateArn --output text)
-
-# 2. Create Kubernetes Secret
+# Example: create secret for DB connection
 kubectl create secret generic backend-secrets \
   --from-literal=db-host=$RDS_ENDPOINT \
   --from-literal=db-password=$TF_VAR_db_password
 
-# 3. Deploy Helm
-cd ~/helm
+cd helm
 helm install lab-app . \
-    --set ingress.certificateArn=$CERT_ARN \
-    --set backend.image=$ACCOUNT_ID.dkr.ecr.$[REGION.amazonaws.com/lab-backend:latest](https://REGION.amazonaws.com/lab-backend:latest) \
-    --set frontend.image=$ACCOUNT_ID.dkr.ecr.$[REGION.amazonaws.com/lab-frontend:latest](https://REGION.amazonaws.com/lab-frontend:latest)
-
+  --set backend.image=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/lab-backend:latest \
+  --set frontend.image=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/lab-frontend:latest
 ```
 
-## 09: Verification
+If you need TLS via ACM, import or request a certificate and pass its ARN to the chart (see chart values).
 
-### 09.1: Get ALB URL
+## Verify deployment
 
-Run the following to retrieve the Application Load Balancer DNS name:
+Get the ingress/ALB hostname:
 
 ```bash
-# Obtain LB URL
-export ALB_HOSTNAME=$(kubectl get ingress app-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+kubectl get ingress -o wide
+ALB_HOSTNAME=$(kubectl get ingress app-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 echo "ALB Hostname: $ALB_HOSTNAME"
-
 ```
 
-### 09.2: Reset Windows Password via SSM
+Visit `https://<ALB_HOSTNAME>` (or configure local hosts for a self-signed cert if using a jumpbox). Expected page shows frontend and backend status.
 
-1. Go to **AWS Console** > **Systems Manager** > **Session Manager**.
-2. Select the instance named `commitlab-app-windows-jumpbox` and click **Start session**.
-3. In the PowerShell CLI that opens, run:
-```powershell
-net user Administrator "MyStrongPassword123!"
+## Notes & security
 
-```
+- Do not commit secrets or plaintext passwords to the repo. Use `TF_VAR_` variables, SSM Parameter Store, or Secrets Manager.
+- Use least-privilege IAM roles for CI/CD and deploy bots.
+- If the remote repository already has commits, fetch and reconcile histories before pushing.
 
+---
 
-4. Close the session.
+If you want, I can also:
 
-### 09.3: Access via Fleet Manager (RDP)
+- Draft a sample `main.tf` for the infra (I can create it under `commitlab-infra/`).
+- Run the local `git` commands to add and commit this change.
 
-1. Go to **AWS Console** > **Systems Manager** > **Fleet Manager**.
-2. Select `commitlab-app-windows-jumpbox`.
-3. Click **Node Actions** > **Connect** > **Connect with Remote Desktop**.
-4. Select **User credentials**:
-* **Username**: Administrator
-* **Password**: (The password you set in step 09.2)
-
-
-5. Click **Connect**.
-
-### 09.4: DNS Config & Test (Inside RDP Session)
-
-1. Open **Notepad** as Administrator and edit `C:\Windows\System32\drivers\etc\hosts`.
-2. Add the following line (replace `<ALB_IP>` with the IP resolved from the hostname in Step 09.1):
-```text
-<ALB_IP>  Lab-commit-task.commit.local
-
-```
-
-
-3. Open a browser and navigate to: `https://Lab-commit-task.commit.local`.
-4. Accept the self-signed certificate warning.
-
-**Expected Result**: You should see a page displaying:
-
-* `Frontend Version: v1.0.0`
-* `Backend Says: Hello Lab-commit 10`
-
-```
-
-Would you like me to help you draft the `main.tf` file for the infrastructure deployment in step 04?
-
-```
+File updated: `README.md`
