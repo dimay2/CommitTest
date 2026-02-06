@@ -11,6 +11,7 @@ This repository contains the Terraform infrastructure, Helm charts, and applicat
 - [Install AWS Load Balancer Controller](#install-aws-load-balancer-controller)
 - [Deploy application (Helm)](#deploy-application-helm)
 - [Configure Internal DNS (Crucial)](#configure-internal-dns-crucial)
+- [CI/CD Pipeline (CodeCommit & CodePipeline)](#cicd-pipeline-codecommit--codepipeline)
 - [Verify deployment](#verify-deployment)
 - [Notes & security](#notes--security)
 
@@ -62,6 +63,7 @@ fi
 * `app/frontend/` — Frontend application and Dockerfile.
 * `helm/` — Helm chart for the application deployment.
 * `update-dns.sh` — **Bridge Script** to update Route53 in this air-gapped environment.
+* `buildspec.yml` — Instructions for AWS CodeBuild to build and deploy the app.
 
 ## Quick start
 
@@ -236,6 +238,56 @@ chmod +x update-dns.sh
 Wait for the output: `✅ Success! DNS Updated.`
 *If this step is skipped, the URL `https://Lab-commit-task.commit.local` will NOT resolve.*
 
+## CI/CD Pipeline (CodeCommit & CodePipeline)
+
+The Terraform configuration provisions an automated pipeline (AWS CodePipeline + CodeBuild) that listens to a private git repository. To trigger a deployment:
+
+1. **Retrieve Repository URL:**
+```bash
+REPO_URL=$(aws codecommit get-repository --repository-name lab-app-repo --region $AWS_REGION --query 'repositoryMetadata.cloneUrlHttp' --output text)
+echo "Git Repo: $REPO_URL"
+
+```
+
+
+2. **Configure Git Credentials:**
+You must configure your local git client to communicate with AWS CodeCommit.
+```bash
+git config --global credential.helper '!aws codecommit credential-helper $@'
+git config --global credential.UseHttpPath true
+
+```
+
+
+3. **Push Code to Trigger Pipeline:**
+Initialize a git repo in your current folder and push the application code.
+```bash
+git init
+git add .
+git commit -m "Initial commit - Trigger Pipeline"
+
+# Add the private CodeCommit repo as a remote
+git remote add codecommit $REPO_URL
+
+# Push to master/main
+git push codecommit master
+
+```
+
+
+4. **Verify Pipeline Execution:**
+* Go to the **AWS Console > CodePipeline**.
+* Locate `lab-app-pipeline`.
+* Watch the stages: **Source** (Succeeded) -> **Build** (Succeeded).
+* **CodeBuild** will:
+1. Build a new Docker image from your source.
+2. Push it to ECR.
+3. Run `helm upgrade` against the private EKS cluster.
+
+
+
+
+
 ## Verify deployment
 
 1. **Connect to the Windows Jumpbox:**
@@ -302,3 +354,5 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 * **Private Isolation:** The environment contains no Internet Gateway or Public Subnets. Connectivity to AWS services is maintained via VPC Interface and Gateway Endpoints.
 * **Access Control:** All administration is performed through the Windows Jumpbox via SSM; no SSH/RDP ports are open to the internet.
 * **DNS Architecture:** A "Split-Plane" approach is used. Terraform manages the Route53 Zone, while the `update-dns.sh` script bridges the air-gap to update records from the management plane.
+
+```
