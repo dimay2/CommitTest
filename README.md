@@ -1,7 +1,6 @@
-```text
 # AWS Lab 8 — EKS Services & Pipeline
 
-This repository contains the Terraform infrastructure, Helm charts, and application code required to provision an AWS environment with an EKS cluster (Fargate), strictly private networking, ArgoCD for continuous deployment, Monitoring (Kubernetes Dashboard), and a sample Python web application backed by MySQL.
+This repository contains the Terraform infrastructure, Helm charts, and application code required to provision an AWS environment with an EKS cluster (Fargate), **Strictly Private Networking** (Air-Gapped), ArgoCD, Monitoring, and a sample Python web application backed by MySQL.
 
 ## Table of contents
 - [Prerequisites & Cleanup](#prerequisites--cleanup)
@@ -11,6 +10,7 @@ This repository contains the Terraform infrastructure, Helm charts, and applicat
 - [Build & push container images](#build--push-container-images)
 - [Install AWS Load Balancer Controller](#install-aws-load-balancer-controller)
 - [Deploy application (Helm)](#deploy-application-helm)
+- [Configure Internal DNS (Crucial)](#configure-internal-dns-crucial)
 - [Verify deployment](#verify-deployment)
 - [Notes & security](#notes--security)
 
@@ -57,10 +57,11 @@ fi
 
 ## Repository layout
 
-* `commitlab-infra/` — Terraform for **Private-Only** networking, EKS v1.30, ArgoCD, Monitoring (Dashboard), RDS, and VPC Endpoints.
+* `commitlab-infra/` — Terraform for **Strictly Private** networking, EKS v1.30, ArgoCD, Monitoring, RDS, and Route53 Private Zone.
 * `app/backend/` — Backend application and Dockerfile.
 * `app/frontend/` — Frontend application and Dockerfile.
 * `helm/` — Helm chart for the application deployment.
+* `update-dns.sh` — **Bridge Script** to update Route53 in this air-gapped environment.
 
 ## Quick start
 
@@ -167,6 +168,74 @@ helm install lab-app . \
 
 ```
 
+## Configure Internal DNS (Crucial)
+
+Since this is an **Air-Gapped** environment (No Internet Gateway), the cluster cannot reach the public Route53 API to automatically create DNS records. You must run this "Bridge Script" from your management console (where you ran Terraform) to link the internal Load Balancer to the private domain.
+
+**1. Create the `update-dns.sh` file (if not present):**
+
+```bash
+cat <<EOF > update-dns.sh
+#!/bin/bash
+# Route53 Air-Gap Bridge Script
+HOSTED_ZONE_NAME="commit.local"
+RECORD_NAME="Lab-commit-task.commit.local"
+REGION="us-east-1"
+
+echo "--> 1. Reading Terraform outputs..."
+CLUSTER_NAME=\$(terraform -chdir=commitlab-infra output -raw cluster_name)
+ZONE_ID=\$(terraform -chdir=commitlab-infra output -raw hosted_zone_id)
+
+if [ -z "\$CLUSTER_NAME" ] || [ -z "\$ZONE_ID" ]; then
+  echo "❌ Error: Terraform outputs missing."
+  exit 1
+fi
+
+echo "--> 2. Fetching Internal ALB Hostname..."
+ALB_DNS=\$(aws eks update-kubeconfig --region \$REGION --name \$CLUSTER_NAME >/dev/null && kubectl get ingress app-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+if [ -z "\$ALB_DNS" ]; then
+  echo "❌ Error: ALB Hostname not found. Is Helm deployed?"
+  exit 1
+fi
+echo "    ALB: \$ALB_DNS"
+
+echo "--> 3. Updating Route53 Private Record..."
+CHANGE_BATCH=\$(cat <<EOT
+{
+  "Comment": "Air-Gap Update",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "\$RECORD_NAME",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "\$ALB_DNS"}]
+      }
+    }
+  ]
+}
+EOT
+)
+aws route53 change-resource-record-sets --hosted-zone-id \$ZONE_ID --change-batch "\$CHANGE_BATCH"
+echo "✅ Success! DNS Updated."
+EOF
+
+```
+
+**2. Make it executable and run it:**
+
+```bash
+chmod +x update-dns.sh
+./update-dns.sh
+
+```
+
+**3. Verification:**
+Wait for the output: `✅ Success! DNS Updated.`
+*If this step is skipped, the URL `https://Lab-commit-task.commit.local` will NOT resolve.*
+
 ## Verify deployment
 
 1. **Connect to the Windows Jumpbox:**
@@ -181,14 +250,16 @@ aws ssm start-session --target $INSTANCE_ID --document-name AWS-StartPortForward
 
 
 2. Connect via RDP to `localhost:53389`.
-3. **Verify Application Access:**
+3. **Verify Application Access (DNS Test):**
 * Open Chrome on the Windows instance.
 * Navigate to `https://Lab-commit-task.commit.local`.
+* **Success Criteria:** The page loads with the app version string.
+* **Note:** If you see "DNS_PROBE_FINISHED_NXDOMAIN", rerun the `update-dns.sh` script from your management console.
 * Click the padlock icon to verify the certificate is issued by **"CommitLab DevOps"**.
 
 
 4. **Verify Monitoring (Dashboard):**
-* **Create Token:** Run this to generate a login token for the Dashboard:
+* **Create Token:**
 ```bash
 kubectl create token admin-user -n monitoring
 
@@ -230,7 +301,4 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 * **Private Isolation:** The environment contains no Internet Gateway or Public Subnets. Connectivity to AWS services is maintained via VPC Interface and Gateway Endpoints.
 * **Access Control:** All administration is performed through the Windows Jumpbox via SSM; no SSH/RDP ports are open to the internet.
-
-```
-
-```
+* **DNS Architecture:** A "Split-Plane" approach is used. Terraform manages the Route53 Zone, while the `update-dns.sh` script bridges the air-gap to update records from the management plane.

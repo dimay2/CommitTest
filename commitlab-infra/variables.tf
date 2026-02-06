@@ -1,10 +1,29 @@
-variable "aws_region" { type = string }
-variable "vpc_cidr" { type = string }
-variable "cluster_name" { type = string }
-variable "app_name" { type = string }
-variable "hosted_zone_name" { type = string }
+variable "aws_region" {
+  description = "AWS Region to deploy resources"
+  type        = string
+}
 
-# SECURITY: No default value. Must be provided via TF_VAR_db_password
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC"
+  type        = string
+}
+
+variable "cluster_name" {
+  description = "Name of the EKS Cluster"
+  type        = string
+}
+
+variable "app_name" {
+  description = "Base name for application resources"
+  type        = string
+}
+
+variable "hosted_zone_name" {
+  description = "The Private DNS Zone name (e.g., commit.local)"
+  type        = string
+}
+
+# SECURITY: No default value. Must be provided via TF_VAR_db_password env var
 variable "db_password" { 
   type        = string
   sensitive   = true 

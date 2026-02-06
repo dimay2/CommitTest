@@ -13,7 +13,14 @@ output "rds_endpoint" {
   value       = aws_db_instance.default.address
 }
 
+# Required for the update-dns.sh script to locate the Private Zone
+output "hosted_zone_id" {
+  description = "The ID of the Private Route53 Hosted Zone"
+  value       = aws_route53_zone.private.zone_id
+}
+
+# Optional: Useful for Helm installation to know the ARN automatically
 output "acm_certificate_arn" {
-  description = "The ARN of the self-signed ACM certificate for the Ingress"
+  description = "ARN of the self-signed certificate"
   value       = aws_acm_certificate.imported_cert.arn
 }

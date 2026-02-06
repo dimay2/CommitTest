@@ -3,11 +3,30 @@ kind: Ingress
 metadata:
   name: app-ingress
   annotations:
+    # 1. Specifies we are using the AWS Load Balancer Controller
     kubernetes.io/ingress.class: alb
+
+    # 2. CRITICAL for Lab Requirements:
+    # "internal" creates a Private Load Balancer (No Public IP).
+    # This ensures the service is NOT exposed to the internet.
     alb.ingress.kubernetes.io/scheme: internal
+
+    # 3. CRITICAL for Fargate:
+    # Fargate pods do not have NodePorts. We must route traffic directly
+    # to the Pod IP address. "instance" mode would fail here.
     alb.ingress.kubernetes.io/target-type: ip
+
+    # 4. SSL Termination Requirement:
+    # Injects the ACM Certificate ARN (passed from Terraform -> Helm Values).
+    # The ALB handles the decryption offloading.
     alb.ingress.kubernetes.io/certificate-arn: {{ .Values.ingress.certificateArn }}
+
+    # 5. Force HTTPS:
+    # Configures the ALB listener to open port 443 (HTTPS).
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+
+    # Optional: Good practice to ensure healthy targets before routing
+    alb.ingress.kubernetes.io/healthcheck-path: /
 spec:
   rules:
     - host: {{ .Values.ingress.host }}
