@@ -1,0 +1,12 @@
+backend:
+  image: "" # Injected by CLI
+  replicas: 1
+
+frontend:
+  image: "" # Injected by CLI
+  replicas: 1
+  version: "v1.0.0"
+
+ingress:
+  host: "Lab-commit-task.commit.local"
+  certificateArn: "" # Injected by CLI
