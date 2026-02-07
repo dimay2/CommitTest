@@ -11,7 +11,7 @@ This repository contains the Terraform infrastructure, Helm charts, and applicat
 - [Install AWS Load Balancer Controller](#install-aws-load-balancer-controller)
 - [Deploy application (Helm)](#deploy-application-helm)
 - [Configure Internal DNS (Crucial)](#configure-internal-dns-crucial)
-- [CI/CD Pipeline (CodeCommit & CodePipeline)](#cicd-pipeline-codecommit--codepipeline)
+- [CI/CD Pipeline (Triggering from GitHub Code)](#cicd-pipeline-triggering-from-github-code)
 - [Verify deployment](#verify-deployment)
 - [Notes & security](#notes--security)
 
@@ -22,7 +22,7 @@ This repository contains the Terraform infrastructure, Helm charts, and applicat
 ### Tools Required
 - Git, Terraform (v1.5+), Helm 3, AWS CLI v2, kubectl, Docker.
 
-### ⚠️ Requirement: Delete Default VPC
+### Requirement: Delete Default VPC
 Per the lab requirements, the Default VPC must be deleted before provisioning the new environment. Use the following script to identify and remove it:
 
 ```bash
@@ -67,8 +67,17 @@ fi
 
 ## Quick start
 
-1. Configure required environment variables:
+1. **Clone the Repository:**
+Download the project files from GitHub to your local AWS CLI environment.
+```bash
+git clone https://github.com/dimay2/CommitTest.git
+cd CommitTest
 
+```
+
+
+2. **Configure Environment Variables:**
+Set the required variables for Terraform and AWS.
 ```bash
 export TF_VAR_db_password="YOUR_DB_PASSWORD"
 export AWS_REGION="us-east-1"
@@ -77,8 +86,9 @@ export TF_LOCK_TABLE="<your-terraform-lock-table>"
 
 ```
 
-2. Initialize and apply Terraform (from `commitlab-infra`):
 
+3. **Initialize and Apply Terraform:**
+Navigate to the infrastructure directory and provision the resources.
 ```bash
 cd commitlab-infra
 terraform init \
@@ -89,13 +99,16 @@ terraform apply -auto-approve
 
 ```
 
-3. Configure kubectl for the EKS cluster:
 
+4. **Configure kubectl:**
+Connect your CLI to the newly created EKS cluster.
 ```bash
 export CLUSTER_NAME=$(terraform output -raw cluster_name)
 aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
 
 ```
+
+
 
 ## Terraform backend (S3 + DynamoDB)
 
@@ -115,7 +128,7 @@ aws dynamodb create-table \
 
 ## Build & push container images
 
-Create ECR repositories and push the application images. In this private environment, the cluster pulls images via ECR VPC Interface Endpoints.
+Create ECR repositories and push the application images manually (for the initial deployment).
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -125,23 +138,26 @@ aws ecr create-repository --repository-name lab-frontend || true
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
 # Backend
-cd app/backend
+cd ../app/backend
 docker build -t lab-backend .
-docker tag lab-backend:latest $ACCOUNT_ID.dkr.ecr.$AWS_[REGION.amazonaws.com/lab-backend:latest](https://REGION.amazonaws.com/lab-backend:latest)
-docker push $ACCOUNT_ID.dkr.ecr.$AWS_[REGION.amazonaws.com/lab-backend:latest](https://REGION.amazonaws.com/lab-backend:latest)
+docker tag lab-backend:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:latest
+docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:latest
 
 # Frontend
 cd ../frontend
 docker build -t lab-frontend .
-docker tag lab-frontend:latest $ACCOUNT_ID.dkr.ecr.$AWS_[REGION.amazonaws.com/lab-frontend:latest](https://REGION.amazonaws.com/lab-frontend:latest)
-docker push $ACCOUNT_ID.dkr.ecr.$AWS_[REGION.amazonaws.com/lab-frontend:latest](https://REGION.amazonaws.com/lab-frontend:latest)
+docker tag lab-frontend:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:latest
+docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:latest
+
+# Return to root for next steps
+cd ../../
 
 ```
 
 ## Install AWS Load Balancer Controller
 
 ```bash
-helm repo add eks [https://aws.github.io/eks-charts](https://aws.github.io/eks-charts)
+helm repo add eks https://aws.github.io/eks-charts
 helm repo update
 
 helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
@@ -154,27 +170,30 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
 
 ## Deploy application (Helm)
 
-The Terraform output automatically provides the ARN of the self-signed certificate generated during infrastructure provisioning.
+Deploy the application using the local Helm chart.
 
 ```bash
 # Create Kubernetes secret for DB credentials
 kubectl create secret generic backend-secrets \
-  --from-literal=db-host=$(terraform output -raw rds_endpoint) \
+  --from-literal=db-host=$(cd commitlab-infra && terraform output -raw rds_endpoint) \
   --from-literal=db-password=$TF_VAR_db_password
 
 cd helm
 helm install lab-app . \
-  --set backend.image=$ACCOUNT_ID.dkr.ecr.$AWS_[REGION.amazonaws.com/lab-backend:latest](https://REGION.amazonaws.com/lab-backend:latest) \
-  --set frontend.image=$ACCOUNT_ID.dkr.ecr.$AWS_[REGION.amazonaws.com/lab-frontend:latest](https://REGION.amazonaws.com/lab-frontend:latest) \
-  --set ingress.certificateArn=$(terraform output -raw acm_certificate_arn)
+  --set backend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:latest \
+  --set frontend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:latest \
+  --set ingress.certificateArn=$(cd ../commitlab-infra && terraform output -raw acm_certificate_arn)
+
+# Return to root
+cd ..
 
 ```
 
 ## Configure Internal DNS (Crucial)
 
-Since this is an **Air-Gapped** environment (No Internet Gateway), the cluster cannot reach the public Route53 API to automatically create DNS records. You must run this "Bridge Script" from your management console (where you ran Terraform) to link the internal Load Balancer to the private domain.
+Since this is an **Air-Gapped** environment, run this bridge script from your management console to update the Route53 Private Zone.
 
-**1. Create the `update-dns.sh` file (if not present):**
+**1. Create the update-dns.sh file (if not present):**
 
 ```bash
 cat <<EOF > update-dns.sh
@@ -189,7 +208,7 @@ CLUSTER_NAME=\$(terraform -chdir=commitlab-infra output -raw cluster_name)
 ZONE_ID=\$(terraform -chdir=commitlab-infra output -raw hosted_zone_id)
 
 if [ -z "\$CLUSTER_NAME" ] || [ -z "\$ZONE_ID" ]; then
-  echo "❌ Error: Terraform outputs missing."
+  echo "[ERROR] Terraform outputs missing."
   exit 1
 fi
 
@@ -197,7 +216,7 @@ echo "--> 2. Fetching Internal ALB Hostname..."
 ALB_DNS=\$(aws eks update-kubeconfig --region \$REGION --name \$CLUSTER_NAME >/dev/null && kubectl get ingress app-ingress -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
 if [ -z "\$ALB_DNS" ]; then
-  echo "❌ Error: ALB Hostname not found. Is Helm deployed?"
+  echo "[ERROR] ALB Hostname not found. Is Helm deployed?"
   exit 1
 fi
 echo "    ALB: \$ALB_DNS"
@@ -221,7 +240,7 @@ CHANGE_BATCH=\$(cat <<EOT
 EOT
 )
 aws route53 change-resource-record-sets --hosted-zone-id \$ZONE_ID --change-batch "\$CHANGE_BATCH"
-echo "✅ Success! DNS Updated."
+echo "[SUCCESS] DNS Updated."
 EOF
 
 ```
@@ -235,23 +254,23 @@ chmod +x update-dns.sh
 ```
 
 **3. Verification:**
-Wait for the output: `✅ Success! DNS Updated.`
-*If this step is skipped, the URL `https://Lab-commit-task.commit.local` will NOT resolve.*
+Wait for the output: `[SUCCESS] DNS Updated.`
 
-## CI/CD Pipeline (CodeCommit & CodePipeline)
+## CI/CD Pipeline (Triggering from GitHub Code)
 
-The Terraform configuration provisions an automated pipeline (AWS CodePipeline + CodeBuild) that listens to a private git repository. To trigger a deployment:
+Terraform provisions a **CodePipeline** that listens to a private **CodeCommit** repository. To trigger the pipeline using the code you just cloned from GitHub:
 
-1. **Retrieve Repository URL:**
+1. **Retrieve the Private Repo URL:**
+Get the HTTP clone URL of the AWS CodeCommit repository created by Terraform.
 ```bash
 REPO_URL=$(aws codecommit get-repository --repository-name lab-app-repo --region $AWS_REGION --query 'repositoryMetadata.cloneUrlHttp' --output text)
-echo "Git Repo: $REPO_URL"
+echo "Target Repo: $REPO_URL"
 
 ```
 
 
-2. **Configure Git Credentials:**
-You must configure your local git client to communicate with AWS CodeCommit.
+2. **Configure Git Credentials for AWS:**
+Configure your local git client to allow pushing to AWS CodeCommit.
 ```bash
 git config --global credential.helper '!aws codecommit credential-helper $@'
 git config --global credential.UseHttpPath true
@@ -259,32 +278,23 @@ git config --global credential.UseHttpPath true
 ```
 
 
-3. **Push Code to Trigger Pipeline:**
-Initialize a git repo in your current folder and push the application code.
+3. **Push GitHub Code to AWS CodeCommit:**
+Add the AWS repo as a new remote called `codecommit` and push the `main` branch.
 ```bash
-git init
-git add .
-git commit -m "Initial commit - Trigger Pipeline"
-
-# Add the private CodeCommit repo as a remote
+# Add the private AWS repo as a remote
 git remote add codecommit $REPO_URL
 
-# Push to master/main
-git push codecommit master
+# Push the code you cloned from GitHub to the private AWS repo
+git push codecommit main
 
 ```
 
 
 4. **Verify Pipeline Execution:**
-* Go to the **AWS Console > CodePipeline**.
-* Locate `lab-app-pipeline`.
-* Watch the stages: **Source** (Succeeded) -> **Build** (Succeeded).
-* **CodeBuild** will:
-1. Build a new Docker image from your source.
-2. Push it to ECR.
-3. Run `helm upgrade` against the private EKS cluster.
-
-
+* Go to **AWS Console > CodePipeline**.
+* Open `lab-app-pipeline`.
+* You will see the pipeline triggering automatically from the push.
+* **CodeBuild** will build a new image, push it to ECR, and run `helm upgrade` on the private cluster.
 
 
 
@@ -306,8 +316,7 @@ aws ssm start-session --target $INSTANCE_ID --document-name AWS-StartPortForward
 * Open Chrome on the Windows instance.
 * Navigate to `https://Lab-commit-task.commit.local`.
 * **Success Criteria:** The page loads with the app version string.
-* **Note:** If you see "DNS_PROBE_FINISHED_NXDOMAIN", rerun the `update-dns.sh` script from your management console.
-* Click the padlock icon to verify the certificate is issued by **"CommitLab DevOps"**.
+* **Note:** If you see "DNS_PROBE_FINISHED_NXDOMAIN", rerun the `update-dns.sh` script.
 
 
 4. **Verify Monitoring (Dashboard):**
@@ -326,7 +335,6 @@ kubectl port-forward svc/kubernetes-dashboard-kong-proxy -n monitoring 8443:443
 
 
 * Open `https://localhost:8443` in your browser.
-* Paste the token to log in. You should see CPU/Memory usage metrics for your pods (powered by Metrics Server).
 
 
 5. **Verify ArgoCD Access:**
@@ -354,5 +362,3 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 * **Private Isolation:** The environment contains no Internet Gateway or Public Subnets. Connectivity to AWS services is maintained via VPC Interface and Gateway Endpoints.
 * **Access Control:** All administration is performed through the Windows Jumpbox via SSM; no SSH/RDP ports are open to the internet.
 * **DNS Architecture:** A "Split-Plane" approach is used. Terraform manages the Route53 Zone, while the `update-dns.sh` script bridges the air-gap to update records from the management plane.
-
-```
