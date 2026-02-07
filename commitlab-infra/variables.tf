@@ -75,3 +75,4 @@ variable "kubernetes_dashboard_image" {
   description = "Kubernetes dashboard image URI (private ECR)"
   type        = string
   default     = ""
+}
