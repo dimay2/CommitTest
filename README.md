@@ -121,12 +121,14 @@ Create the S3 bucket and DynamoDB table **before** initializing Terraform.
 ```bash
 aws s3 mb s3://$TF_STATE_BUCKET --region $AWS_REGION
 aws s3api put-bucket-versioning --bucket $TF_STATE_BUCKET --versioning-configuration Status=Enabled
+aws s3api put-bucket-tagging --bucket $TF_STATE_BUCKET --tagging 'TagSet=[{Key=Environment,Value='$TF_VAR_environment_tag'},{Key=Project,Value=CommitLab}]'
 
 aws dynamodb create-table \
   --table-name $TF_LOCK_TABLE \
   --attribute-definitions AttributeName=LockID,AttributeType=S \
   --key-schema AttributeName=LockID,KeyType=HASH \
-  --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+  --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+  --tags Key=Environment,Value=$TF_VAR_environment_tag Key=Project,Value=CommitLab
 
 ```
 
@@ -168,8 +170,8 @@ Create ECR repositories and push the application images manually (for the initia
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-aws ecr create-repository --repository-name lab-backend --tags key=Environment,value=dimatest || true
-aws ecr create-repository --repository-name lab-frontend --tags key=Environment,value=dimatest || true
+aws ecr create-repository --repository-name lab-backend --tags key=Environment,value=$TF_VAR_environment_tag || true
+aws ecr create-repository --repository-name lab-frontend --tags key=Environment,value=$TF_VAR_environment_tag || true
 
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
