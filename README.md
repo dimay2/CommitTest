@@ -104,10 +104,11 @@ cd CommitTest
 ```
 
 2. **Configure Environment Variables:**
-Set the required variables for Terraform and AWS.
+Set the required variables for Terraform and AWS. All AWS resources will be tagged with `Environment=dimatest` via Terraform's default_tags.
 
 ```bash
 export TF_VAR_db_password="YOUR_DB_PASSWORD"
+export TF_VAR_environment_tag="dimatest"
 export AWS_REGION="eu-north-1"
 export TF_STATE_BUCKET="<your-unique-terraform-bucket>"
 export TF_LOCK_TABLE="<your-terraform-lock-table>"
@@ -152,14 +153,23 @@ aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
 
 ```
 
+### Resource Tagging
+
+All AWS resources created by Terraform are automatically tagged with:
+- **Project**: CommitLab
+- **ManagedBy**: Terraform  
+- **Environment**: dimatest (configured via `TF_VAR_environment_tag`)
+
+Manual AWS CLI commands include the `dimatest` tag to maintain consistency. To modify the tag value, update `TF_VAR_environment_tag` environment variable before running Terraform.
+
 ## Build & push container images
 
 Create ECR repositories and push the application images manually (for the initial deployment).
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-aws ecr create-repository --repository-name lab-backend || true
-aws ecr create-repository --repository-name lab-frontend || true
+aws ecr create-repository --repository-name lab-backend --tags key=Environment,value=dimatest || true
+aws ecr create-repository --repository-name lab-frontend --tags key=Environment,value=dimatest || true
 
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 

@@ -30,8 +30,9 @@ provider "aws" {
   region = var.aws_region
   default_tags {
     tags = {
-      Project   = "CommitLab"
-      ManagedBy = "Terraform"
+      Project     = "CommitLab"
+      ManagedBy   = "Terraform"
+      Environment = var.environment_tag
     }
   }
 }

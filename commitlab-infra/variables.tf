@@ -23,9 +23,14 @@ variable "hosted_zone_name" {
   type        = string
 }
 
-# SECURITY: No default value. Must be provided via TF_VAR_db_password env var
 variable "db_password" { 
   type        = string
   sensitive   = true 
   description = "RDS Root Password"
+}
+
+variable "environment_tag" {
+  description = "Environment tag for all resources"
+  type        = string
+  default     = "dimatest"
 }
