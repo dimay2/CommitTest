@@ -45,19 +45,19 @@ log() {
 }
 
 log_success() {
-  log "$(printf '%b' "${GREEN}SUCCESS${NC}')" "$@"
+  log "$(printf '%b' "${GREEN}SUCCESS${NC}")" "$@"
 }
 
 log_error() {
-  log "$(printf '%b' "${RED}ERROR${NC}')" "$@"
+  log "$(printf '%b' "${RED}ERROR${NC}")" "$@"
 }
 
 log_warning() {
-  log "$(printf '%b' "${YELLOW}WARNING${NC}')" "$@"
+  log "$(printf '%b' "${YELLOW}WARNING${NC}")" "$@"
 }
 
 log_info() {
-  log "$(printf '%b' "${BLUE}INFO${NC}')" "$@"
+  log "$(printf '%b' "${BLUE}INFO${NC}")" "$@"
 }
 
 # Check prerequisites
