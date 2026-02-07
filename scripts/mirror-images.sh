@@ -95,20 +95,25 @@ validate_manifest() {
   
   local line_num=0
   local valid_lines=0
-  while IFS= read -r line; do
+  
+  while read -r line; do
     ((line_num++))
-    # Skip empty lines and comments
-    [[ -z "$line" || "$line" =~ ^# ]] && continue
     
-    # Check format: must have exactly 2 colons (registry/image:tag:repo-name)
-    # Count colons in the line
-    local colon_count=$(echo "$line" | grep -o ':' | wc -l)
+    # Skip empty lines and comments
+    if [[ -z "$line" || "$line" =~ ^# ]]; then
+      continue
+    fi
+    
+    # Count colons - must have at least 2 (source:tag:repo)
+    local colon_count=$(echo "$line" | grep -o ':' | wc -l || echo 0)
+    
     if [ "$colon_count" -lt 2 ]; then
       log_error "Invalid format on line $line_num: $line"
       log_error "Expected format: registry/image:tag:target-repo-name (at least 2 colons)"
       log_error "Example: quay.io/argoproj/argocd:v2.9.8:argocd-server"
       exit 1
     fi
+    
     ((valid_lines++))
   done < "$IMAGES_FILE"
   
