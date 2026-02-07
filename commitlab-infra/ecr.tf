@@ -175,19 +175,19 @@ resource "aws_ecr_repository" "coredns" {
 # Keep only the last 10 images per repo
 resource "aws_ecr_lifecycle_policy" "cleanup" {
   for_each = toset([
-    aws_ecr_repository.argocd_server.repository_name,
-    aws_ecr_repository.argocd_repo_server.repository_name,
-    aws_ecr_repository.argocd_application_controller.repository_name,
-    aws_ecr_repository.argocd_applicationset_controller.repository_name,
-    aws_ecr_repository.argocd_notifications_controller.repository_name,
-    aws_ecr_repository.argocd_dex_server.repository_name,
-    aws_ecr_repository.argocd_redis.repository_name,
-    aws_ecr_repository.metrics_server.repository_name,
-    aws_ecr_repository.kubernetes_dashboard.repository_name,
-    aws_ecr_repository.aws_load_balancer_controller.repository_name,
-    aws_ecr_repository.lab_backend.repository_name,
-    aws_ecr_repository.lab_frontend.repository_name,
-    aws_ecr_repository.coredns.repository_name
+    aws_ecr_repository.argocd_server.name,
+    aws_ecr_repository.argocd_repo_server.name,
+    aws_ecr_repository.argocd_application_controller.name,
+    aws_ecr_repository.argocd_applicationset_controller.name,
+    aws_ecr_repository.argocd_notifications_controller.name,
+    aws_ecr_repository.argocd_dex_server.name,
+    aws_ecr_repository.argocd_redis.name,
+    aws_ecr_repository.metrics_server.name,
+    aws_ecr_repository.kubernetes_dashboard.name,
+    aws_ecr_repository.aws_load_balancer_controller.name,
+    aws_ecr_repository.lab_backend.name,
+    aws_ecr_repository.lab_frontend.name,
+    aws_ecr_repository.coredns.name
   ])
 
   repository = each.value
