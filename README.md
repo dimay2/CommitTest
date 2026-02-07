@@ -132,6 +132,64 @@ aws dynamodb create-table \
 
 ```
 
+### 3.5 Grant Terraform IAM permissions (required before `terraform apply`)
+
+When Terraform creates some AWS resources (for example the `aws_codebuild_project`), the AWS API calls Terraform makes must be allowed by the IAM user or role whose credentials you use to run `terraform apply`. A common failure is an `InvalidInputException: Not authorized to perform DescribeSecurityGroups` error because `ec2:DescribeSecurityGroups` (and related describe actions) are missing.
+
+Below are two ways to grant the minimum additional permissions: using the AWS Console (UI) or the AWS CLI. Replace `TERRAFORM_PRINCIPAL` with the IAM user name or role name/ARN that you use to run Terraform.
+
+- Minimal policy JSON (allow these EC2 describe actions):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeNetworkInterfaces"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+Console steps (attach to a user or role):
+
+1. Open the AWS Management Console → IAM → Policies → Create policy.
+2. Choose the JSON tab and paste the minimal policy above, then click Next.
+3. Give the policy a name like `Terraform-Ec2Describe-ReadOnly` and create it.
+4. Go to IAM → Users (or Roles) → select the user/role you use for Terraform → "Add permissions" → Attach policies and attach `Terraform-Ec2Describe-ReadOnly`.
+
+AWS CLI steps (create policy and attach to a user):
+
+```bash
+# 1) Create the policy from the JSON file (local file: terraform-ec2-describe.json)
+aws iam create-policy \
+  --policy-name Terraform-Ec2Describe-ReadOnly \
+  --policy-document file://terraform-ec2-describe.json
+
+# 2) Attach the policy to an IAM user (example: terraform-user)
+aws iam attach-user-policy \
+  --user-name TERRAFORM_PRINCIPAL \
+  --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/Terraform-Ec2Describe-ReadOnly
+
+# OR attach to a role:
+aws iam attach-role-policy \
+  --role-name TERRAFORM_PRINCIPAL \
+  --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/Terraform-Ec2Describe-ReadOnly
+```
+
+Notes:
+- If you already have an IAM policy for Terraform, you can simply add `ec2:DescribeSecurityGroups` (and the related `Describe*` actions shown above) to that existing policy instead of creating a new one.
+- For short-term testing, you can run `terraform apply` using credentials with broader permissions (for example an administrator) to confirm the error is permission-related, then scope down to the minimal policy above.
+- If your `aws_codebuild_project` uses `vpc_config` (as this repo does), AWS validates the referenced subnets and security groups at create time — Terraform will need the `ec2:Describe*` permissions to successfully create the CodeBuild project.
+
+
 4. **Initialize and Apply Terraform:**
 Navigate to the infrastructure directory and provision the resources.
 **Note:** This step can take 15-20 minutes.

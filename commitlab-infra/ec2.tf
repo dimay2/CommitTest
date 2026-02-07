@@ -20,10 +20,22 @@ resource "aws_iam_instance_profile" "ssm_profile" {
   role = aws_iam_role.ssm_role.name
 }
 
+# Use the most recent official Windows Server 2022 AMI for the region instead
+# of a hardcoded AMI id which can be missing or invalid per-region.
+data "aws_ami" "windows_2022" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["Windows_Server-2022-English-Full-Base-*"]
+  }
+}
+
 resource "aws_instance" "windows_jumpbox" {
-  ami           = "ami-05b1126b856a422e4" # Windows Server 2022
-  instance_type = "t3.medium"
-  subnet_id     = module.vpc.private_subnets[0]
-  iam_instance_profile = aws_iam_instance_profile.ssm_profile.name
+  ami                    = data.aws_ami.windows_2022.id
+  instance_type          = "t3.medium"
+  subnet_id              = module.vpc.private_subnets[0]
+  iam_instance_profile   = aws_iam_instance_profile.ssm_profile.name
   tags = { Name = "${var.app_name}-windows-jumpbox" }
 }
