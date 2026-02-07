@@ -3,7 +3,7 @@
 This repository contains the Terraform infrastructure, Helm charts, and application code required to provision an AWS environment with an EKS cluster (Fargate), **Strictly Private Networking** (Air-Gapped), ArgoCD, Monitoring, and a sample Python web application backed by MySQL.
 
 ## Table of contents
-- [Prerequisites & Cleanup](#prerequisites--cleanup)
+- [Prerequisites & Tool Installation](#prerequisites--tool-installation)
 - [Repository layout](#repository-layout)
 - [Quick start](#quick-start)
 - [Terraform backend (S3 + DynamoDB)](#terraform-backend-s3--dynamodb)
@@ -17,12 +17,40 @@ This repository contains the Terraform infrastructure, Helm charts, and applicat
 
 ---
 
-## Prerequisites & Cleanup
+## Prerequisites & Tool Installation
 
-### Tools Required
-- Git, Terraform (v1.5+), Helm 3, AWS CLI v2, kubectl, Docker.
+### 1. Install Required Tools
+If you are running this from a fresh AWS CloudShell or Amazon Linux 2023 instance, run the following commands to install the necessary tools (Git, Terraform, Docker, Helm, Kubectl).
 
-### Requirement: Delete Default VPC
+```bash
+# Update System
+sudo yum update -y
+
+# 1. Install Git & Docker
+sudo yum install -y git docker
+sudo service docker start
+sudo usermod -a -G docker ec2-user
+# Note: You may need to logout and login again for docker group permissions to take effect.
+
+# 2. Install Terraform
+sudo yum install -y yum-utils
+sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+sudo yum install -y terraform
+
+# 3. Install kubectl (v1.30)
+curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.30.0/2024-05-12/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin/
+
+# 4. Install Helm
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+
+```
+
+### 2. Requirement: Delete Default VPC
+
 Per the lab requirements, the Default VPC must be deleted before provisioning the new environment. Use the following script to identify and remove it:
 
 ```bash
@@ -69,15 +97,16 @@ fi
 
 1. **Clone the Repository:**
 Download the project files from GitHub to your local AWS CLI environment.
+
 ```bash
 git clone https://github.com/dimay2/CommitTest.git
 cd CommitTest
 
 ```
 
-
 2. **Configure Environment Variables:**
 Set the required variables for Terraform and AWS.
+
 ```bash
 export TF_VAR_db_password="YOUR_DB_PASSWORD"
 export AWS_REGION="eu-north-1"
@@ -86,9 +115,10 @@ export TF_LOCK_TABLE="<your-terraform-lock-table>"
 
 ```
 
-
 3. **Initialize and Apply Terraform:**
 Navigate to the infrastructure directory and provision the resources.
+**Note:** This step can take 15-20 minutes.
+
 ```bash
 cd commitlab-infra
 terraform init \
@@ -99,16 +129,14 @@ terraform apply -auto-approve
 
 ```
 
-
 4. **Configure kubectl:**
 Connect your CLI to the newly created EKS cluster.
+
 ```bash
 export CLUSTER_NAME=$(terraform output -raw cluster_name)
 aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
 
 ```
-
-
 
 ## Terraform backend (S3 + DynamoDB)
 
@@ -156,15 +184,23 @@ cd ../../
 
 ## Install AWS Load Balancer Controller
 
+We need to install the controller and ensure it uses the IAM Role created by Terraform (`commitlab-cluster-alb-controller`).
+
 ```bash
 helm repo add eks https://aws.github.io/eks-charts
 helm repo update
 
+# 1. Get the IAM Role ARN created by Terraform
+ALB_ROLE_ARN=$(aws iam get-role --role-name commitlab-cluster-alb-controller --query Role.Arn --output text)
+echo "Attaching Service Account to Role: $ALB_ROLE_ARN"
+
+# 2. Install Controller with Service Account creation enabled
 helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   -n kube-system \
   --set clusterName=$CLUSTER_NAME \
-  --set serviceAccount.create=false \
-  --set serviceAccount.name=aws-load-balancer-controller
+  --set serviceAccount.create=true \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$ALB_ROLE_ARN
 
 ```
 
@@ -262,24 +298,25 @@ Terraform provisions a **CodePipeline** that listens to a private **CodeCommit**
 
 1. **Retrieve the Private Repo URL:**
 Get the HTTP clone URL of the AWS CodeCommit repository created by Terraform.
+
 ```bash
 REPO_URL=$(aws codecommit get-repository --repository-name lab-app-repo --region $AWS_REGION --query 'repositoryMetadata.cloneUrlHttp' --output text)
 echo "Target Repo: $REPO_URL"
 
 ```
 
-
 2. **Configure Git Credentials for AWS:**
 Configure your local git client to allow pushing to AWS CodeCommit.
+
 ```bash
 git config --global credential.helper '!aws codecommit credential-helper $@'
 git config --global credential.UseHttpPath true
 
 ```
 
-
 3. **Push GitHub Code to AWS CodeCommit:**
 Add the AWS repo as a new remote called `codecommit` and push the `main` branch.
+
 ```bash
 # Add the private AWS repo as a remote
 git remote add codecommit $REPO_URL
@@ -289,19 +326,18 @@ git push codecommit main
 
 ```
 
-
 4. **Verify Pipeline Execution:**
+
 * Go to **AWS Console > CodePipeline**.
 * Open `lab-app-pipeline`.
 * You will see the pipeline triggering automatically from the push.
 * **CodeBuild** will build a new image, push it to ECR, and run `helm upgrade` on the private cluster.
 
-
-
 ## Verify deployment
 
 1. **Connect to the Windows Jumpbox:**
 Access the Windows instance via AWS Systems Manager (SSM). For RDP access through the private network, use SSM Port Forwarding:
+
 ```bash
 INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=commitlab-app-windows-jumpbox" --query "Reservations[0].Instances[0].InstanceId" --output text)
 
@@ -310,52 +346,50 @@ aws ssm start-session --target $INSTANCE_ID --document-name AWS-StartPortForward
 
 ```
 
-
 2. Connect via RDP to `localhost:53389`.
 3. **Verify Application Access (DNS Test):**
+
 * Open Chrome on the Windows instance.
 * Navigate to `https://Lab-commit-task.commit.local`.
 * **Success Criteria:** The page loads with the app version string.
 * **Note:** If you see "DNS_PROBE_FINISHED_NXDOMAIN", rerun the `update-dns.sh` script.
 
-
 4. **Verify Monitoring (Dashboard):**
+
 * **Create Token:**
+
 ```bash
 kubectl create token admin-user -n monitoring
 
 ```
 
-
 * **Proxy Dashboard:**
+
 ```bash
 kubectl port-forward svc/kubernetes-dashboard-kong-proxy -n monitoring 8443:443
 
 ```
 
-
 * Open `https://localhost:8443` in your browser.
 
-
 5. **Verify ArgoCD Access:**
+
 * **Retrieve Password:**
+
 ```bash
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
 ```
 
-
 * **Access UI:**
+
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 ```
 
-
 * Open `https://localhost:8080` in your browser.
 * Login with user `admin` and the retrieved password.
-
-
 
 ## Notes & security
 
