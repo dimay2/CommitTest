@@ -34,3 +34,44 @@ variable "environment_tag" {
   type        = string
   default     = "dimatest"
 }
+
+# ============================================================================
+# Private ECR Image Configuration
+# For air-gapped environments, all Helm chart images must be mirrored to
+# private ECR repositories before deployment. Set these to your private ECR URIs.
+# ============================================================================
+
+variable "enable_private_ecr_images" {
+  description = "Enable private ECR image pull for all Helm charts (air-gapped mode)"
+  type        = bool
+  default     = true
+}
+
+variable "ecr_registry" {
+  description = "Private ECR registry URL (e.g., 123456789012.dkr.ecr.eu-north-1.amazonaws.com)"
+  type        = string
+  default     = "" # Will be constructed from account_id and region if empty
+}
+
+variable "argocd_server_image" {
+  description = "ArgoCD server image URI (private ECR)"
+  type        = string
+  default     = ""
+}
+
+variable "argocd_repo_server_image" {
+  description = "ArgoCD repo server image URI (private ECR)"
+  type        = string
+  default     = ""
+}
+
+variable "metrics_server_image" {
+  description = "Metrics server image URI (private ECR)"
+  type        = string
+  default     = ""
+}
+
+variable "kubernetes_dashboard_image" {
+  description = "Kubernetes dashboard image URI (private ECR)"
+  type        = string
+  default     = ""

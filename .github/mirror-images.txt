@@ -1,0 +1,44 @@
+# Image Manifest for Air-Gapped EKS Mirroring
+# Format: source-image:tag:target-ecr-repo-name
+#
+# Instructions:
+# 1. Verify image versions match your Helm chart versions
+# 2. Run: ./scripts/mirror-images.sh .github/mirror-images.txt
+# 3. All images will be pushed to your private ECR with same tags
+
+# ============================================================================
+# ArgoCD Components (v2.9.8) — update versions if using different Helm chart
+# ============================================================================
+quay.io/argoproj/argocd:v2.9.8:argocd-server
+quay.io/argoproj/argocd:v2.9.8:argocd-repo-server
+quay.io/argoproj/argocd:v2.9.8:argocd-application-controller
+quay.io/argoproj/argocd:v2.9.8:argocd-applicationset-controller
+quay.io/argoproj/argocd:v2.9.8:argocd-notifications-controller
+dexidp/dex:v2.38.0:argocd-dex-server
+redis:7.0.14-alpine:argocd-redis
+
+# ============================================================================
+# Kubernetes Monitoring Stack
+# ============================================================================
+registry.k8s.io/metrics-server/metrics-server:v0.6.4:metrics-server
+kubernetesui/dashboard:v2.7.0:kubernetes-dashboard
+
+# ============================================================================
+# AWS Load Balancer Controller
+# ============================================================================
+# NOTE: This image comes from AWS ECR public. Adjust source registry as needed.
+public.ecr.aws/eks/aws-load-balancer-controller:v2.6.2:aws-load-balancer-controller
+
+# ============================================================================
+# Application Container Images
+# ============================================================================
+# These are your custom application images (built locally first)
+# Keep them here for reference; mirror after building
+python:3.11-slim:lab-backend
+node:18-alpine:lab-frontend
+
+# ============================================================================
+# Optional: Additional base images or utilities
+# ============================================================================
+# Uncomment/add as needed:
+# registry.k8s.io/coredns/coredns:v1.10.1:coredns

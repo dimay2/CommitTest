@@ -6,7 +6,9 @@ This repository contains the Terraform infrastructure, Helm charts, and applicat
 - [Prerequisites & Tool Installation](#prerequisites--tool-installation)
 - [Repository layout](#repository-layout)
 - [Quick start](#quick-start)
+- [Important: Private ECR image enforcement](#important-private-ecr-image-enforcement-for-air-gapped-eks)
 - [Build & push container images](#build--push-container-images)
+- [Mirror images for an air-gapped cluster](#mirror-images-for-an-air-gapped-cluster-private-ecr)
 - [Install AWS Load Balancer Controller](#install-aws-load-balancer-controller)
 - [Deploy application (Helm)](#deploy-application-helm)
 - [Configure Internal DNS (Crucial)](#configure-internal-dns-crucial)
@@ -89,6 +91,8 @@ fi
 * `app/backend/` — Backend application and Dockerfile.
 * `app/frontend/` — Frontend application and Dockerfile.
 * `helm/` — Helm chart for the application deployment.
+* `scripts/` — Utility scripts including `mirror-images.sh` for mirroring container images to private ECR.
+* `.github/mirror-images.txt` — Image manifest for the mirroring script.
 * `update-dns.sh` — **Bridge Script** to update Route53 in this air-gapped environment.
 * `buildspec.yml` — Instructions for AWS CodeBuild to build and deploy the app.
 
@@ -209,6 +213,28 @@ terraform apply tfplan
 
 ```
 
+### Important: Private ECR image enforcement for air-gapped EKS
+
+The Terraform configuration is pre-configured to pull all Helm chart images from your **private ECR** (not public Internet registries). This is enforced by:
+
+- `argocd.tf` → ArgoCD components pull from private ECR
+- `monitoring.tf` → Metrics Server and Kubernetes Dashboard pull from private ECR
+- All pod images default to: `ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/image-name:tag`
+
+**Before running `terraform apply` (or immediately after):**
+
+1. Mirror all required images to your private ECR using the script provided:
+```bash
+cd ..
+export AWS_REGION=eu-north-1
+chmod +x scripts/mirror-images.sh
+./scripts/mirror-images.sh .github/mirror-images.txt
+```
+
+2. If images are not mirrored to ECR before Helm releases deploy, pods will fail with `ImagePullBackOff`.
+
+3. See the **[Mirror images for an air-gapped cluster](#mirror-images-for-an-air-gapped-cluster-private-ecr)** section below for detailed mirroring instructions.
+
 5. **Configure kubectl:**
 Connect your CLI to the newly created EKS cluster.
 
@@ -227,33 +253,34 @@ All AWS resources created by Terraform are automatically tagged with:
 
 Manual AWS CLI commands include the `dimatest` tag to maintain consistency. To modify the tag value, update `TF_VAR_environment_tag` environment variable before running Terraform.
 
-## Build & push container images
+## Build & push application container images
 
-Create ECR repositories and push the application images manually (for the initial deployment).
+ECR repositories for your application (`lab-backend` and `lab-frontend`) are created automatically by Terraform (see `commitlab-infra/ecr.tf`). To build and push your application images to ECR:
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-aws ecr create-repository --repository-name lab-backend --tags key=Environment,value=$TF_VAR_environment_tag || true
-aws ecr create-repository --repository-name lab-frontend --tags key=Environment,value=$TF_VAR_environment_tag || true
+AWS_REGION=${AWS_REGION:-eu-north-1}
 
+# Login to ECR (repositories already created by Terraform)
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-# Backend
-cd ../app/backend
-docker build -t lab-backend .
+# Build and push Backend
+cd app/backend
+docker build -t lab-backend:latest .
 docker tag lab-backend:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:latest
 docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:latest
 
-# Frontend
+# Build and push Frontend
 cd ../frontend
-docker build -t lab-frontend .
+docker build -t lab-frontend:latest .
 docker tag lab-frontend:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:latest
 docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:latest
 
-# Return to root for next steps
+# Return to root
 cd ../../
-
 ```
+
+**Note:** If you receive "repository not found" errors, verify that `terraform apply` completed successfully in `commitlab-infra/` and that ECR repositories were created.
 
 ### Mirror images for an air-gapped cluster (private ECR)
 
@@ -284,99 +311,118 @@ This will print all ECR repo URIs in your account. Example output:
 
 Save this output or reference it in your mirroring scripts below.
 
-### Step 2: Mirror images from upstream into your private ECR (management host with Internet)
+### Step 2: Mirror images from upstream into your private ECR (production approach with skopeo)
 
-#### Option A: Simple Docker pull / tag / push (manual, repo by repo)
+A production-ready mirroring script is provided: `scripts/mirror-images.sh`
+
+This script uses **skopeo** (industry best practice) for efficient, direct registry-to-registry copying with:
+- Automatic retry logic (3 attempts with backoff)
+- Comprehensive logging to `mirror-logs/`
+- Support for image manifests across architectures
+- No local disk staging of images
+
+#### Prerequisites
+
+Install skopeo on your management host (skip if already installed):
 
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-AWS_REGION=eu-north-1
+# macOS
+brew install skopeo
 
-# Login to ECR
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+# Ubuntu/Debian
+sudo apt-get install skopeo
 
-# Example: mirror ArgoCD Server image
-UPSTREAM_IMAGE="quay.io/argoproj/argocd:v2.9.8"
-ECR_REPO="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/argocd-server"
-
-docker pull $UPSTREAM_IMAGE
-docker tag $UPSTREAM_IMAGE $ECR_REPO:v2.9.8
-docker push $ECR_REPO:v2.9.8
-
-# Repeat for other images...
+# Amazon Linux 2
+sudo yum install skopeo
 ```
 
-#### Option B: Use skopeo for direct registry-to-registry copy (faster, no local storage)
+#### How to mirror all images
 
-```bash
-# Install skopeo on your management host (skip if already installed)
-# On macOS: brew install skopeo
-# On Ubuntu/Debian: sudo apt-get install skopeo
-# On Amazon Linux 2: sudo yum install skopeo
+**1. Review and customize the image manifest:**
 
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-AWS_REGION=eu-north-1
+The image list is maintained in `.github/mirror-images.txt` (one image per line):
 
-# Get ECR login token
-export SKOPEO_ECR_PASSWORD=$(aws ecr get-login-password --region $AWS_REGION)
-
-# Example: copy ArgoCD Server from upstream to private ECR
-skopeo copy \
-  --dest-creds AWS:$SKOPEO_ECR_PASSWORD \
-  docker://quay.io/argoproj/argocd:v2.9.8 \
-  docker://$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/argocd-server:v2.9.8
-
-# Repeat for other images...
+```
+quay.io/argoproj/argocd:v2.9.8:argocd-server
+registry.k8s.io/metrics-server/metrics-server:v0.6.4:metrics-server
+# ... more images
 ```
 
-#### Option C: Automated script for multiple images at once
+Edit this file to:
+- Update image versions if using different Helm chart versions
+- Add/remove images based on your deployment needs
 
-Create a file `mirror-images.sh` (adapt with your specific versions):
+**2. Run the mirror script:**
 
 ```bash
-#!/bin/bash
-set -euo pipefail
-
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-AWS_REGION=${AWS_REGION:-eu-north-1}
-
-# Image mappings: "upstream-image:tag:ecr-repo-name"
-# Obtain specific versions from the Helm chart values you plan to install
-IMAGES=(
-  "quay.io/argoproj/argocd:v2.9.8:argocd-server"
-  "quay.io/argoproj/argocd:v2.9.8:argocd-repo-server"
-  "quay.io/argoproj/argocd:v2.9.8:argocd-application-controller"
-  "quay.io/argoproj/argocd:v2.9.8:argocd-applicationset-controller"
-  "quay.io/argoproj/argocd:v2.9.8:argocd-notifications-controller"
-  "dexidp/dex:v2.38.0:argocd-dex-server"
-  "redis:7.0.14-alpine:argocd-redis"
-  "registry.k8s.io/metrics-server/metrics-server:v0.6.4:metrics-server"
-  "kubernetesui/dashboard:v2.7.0:kubernetes-dashboard"
-  "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon-k8s-cni:v1.14.1:aws-load-balancer-controller"
-  "python:3.11-slim:lab-backend"
-  "node:18-alpine:lab-frontend"
-)
-
-# Login to ECR
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-
-for entry in "${IMAGES[@]}"; do
-  IFS=":" read -r upstream_image upstream_tag repo_name <<< "$entry"
-  target_repo="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo_name"
-  
-  echo "Mirroring $upstream_image:$upstream_tag -> $target_repo:$upstream_tag"
-  docker pull "$upstream_image:$upstream_tag"
-  docker tag "$upstream_image:$upstream_tag" "$target_repo:$upstream_tag"
-  docker push "$target_repo:$upstream_tag"
-done
-
-echo "All images mirrored successfully!"
+cd CommitTest
+export AWS_REGION=eu-north-1
+chmod +x scripts/mirror-images.sh
+./scripts/mirror-images.sh .github/mirror-images.txt
 ```
 
-Run it:
+**3. Monitor progress:**
+
+The script logs all operations to `mirror-logs/mirror-<timestamp>.log`:
+
 ```bash
-chmod +x mirror-images.sh
-./mirror-images.sh
+# Watch logs in real-time (in another terminal)
+tail -f mirror-logs/mirror-*.log
+```
+
+#### Script features
+
+- **Automatic retry**: Failed copies retry up to 3 times with 5-second backoff
+- **Colored output**: Easy-to-read status messages (success, error, warning, info)
+- **Validation**: Checks prerequisites (skopeo, aws CLI), validates manifest format
+- **Logging**: Timestamped logs for all operations, audit trail
+- **Summary**: Final report with success/failure counts
+
+Example output:
+```
+2025-02-07 14:23:45 [INFO] ========== Image Mirror Script Started ==========
+2025-02-07 14:23:45 [INFO] Account ID: 123456789012
+2025-02-07 14:23:45 [INFO] Region: eu-north-1
+2025-02-07 14:23:45 [INFO] Manifest: .github/mirror-images.txt
+...
+2025-02-07 14:24:12 [SUCCESS] Successfully mirrored: quay.io/argoproj/argocd:v2.9.8 -> 123456789012.dkr.ecr.eu-north-1.amazonaws.com/argocd-server:v2.9.8
+...
+====== MIRRORING SUMMARY ======
+Total images: 12
+Successful: 12
+Log file: mirror-logs/mirror-20250207_142345.log
+```
+
+#### Advanced usage
+
+**Mirror only specific images:**
+
+Create a custom manifest and pass it to the script:
+
+```bash
+# Create custom list (e.g., only ArgoCD images)
+cat > custom-images.txt <<EOF
+quay.io/argoproj/argocd:v2.9.8:argocd-server
+quay.io/argoproj/argocd:v2.9.8:argocd-repo-server
+EOF
+
+./scripts/mirror-images.sh custom-images.txt
+```
+
+**Change retry behavior:**
+
+Edit `scripts/mirror-images.sh` and modify:
+```bash
+MAX_RETRIES=3       # Number of retry attempts
+RETRY_DELAY=5       # Seconds between retries
+```
+
+**Integration with CI/CD:**
+
+The script is designed to be called from CI/CD pipelines or scheduled jobs:
+
+```bash
+./scripts/mirror-images.sh .github/mirror-images.txt && echo "Mirror succeeded" || echo "Mirror failed"
 ```
 
 ### Step 3: Find upstream image versions

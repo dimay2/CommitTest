@@ -7,8 +7,12 @@ resource "helm_release" "metrics_server" {
   namespace        = "monitoring"
   create_namespace = true
 
+  # Images pulled from private ECR for air-gapped environment
   values = [
     <<-EOT
+    image:
+      repository: ${var.metrics_server_image != "" ? var.metrics_server_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/metrics-server"}
+      tag: v0.6.4
     args:
       - --kubelet-insecure-tls
     resources:
@@ -30,8 +34,13 @@ resource "helm_release" "kubernetes_dashboard" {
   # Wait for Metrics Server to be ready first
   depends_on = [helm_release.metrics_server]
 
+  # Images pulled from private ECR for air-gapped environment
   values = [
     <<-EOT
+    app:
+      image:
+        repository: ${var.kubernetes_dashboard_image != "" ? var.kubernetes_dashboard_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard"}
+        tag: v2.7.0
     nginx:
       enabled: false
     cert-manager:

@@ -1,3 +1,17 @@
+################################################################################
+# AWS EKS Cluster Configuration (Strictly Private / Air-Gapped)
+#
+# IMPORTANT: All pod images (Helm releases, applications) are configured to
+# pull from PRIVATE ECR repositories ONLY. This enforces air-gap security.
+#
+# Image pull workflow:
+# 1. Mirror upstream images to private ECR using scripts/mirror-images.sh
+# 2. Terraform Helm releases reference private ECR URIs (see argocd.tf, monitoring.tf)
+# 3. Fargate pods pull images from VPC endpoints (no Internet access)
+#
+# See README section "Important: Private ECR image enforcement" for details.
+################################################################################
+
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.10"
