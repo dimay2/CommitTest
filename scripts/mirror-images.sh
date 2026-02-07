@@ -64,7 +64,7 @@ log_info() {
 check_requirements() {
   log_info "Checking prerequisites..."
   
-  if ! command -v skopeo &> /dev/null; then
+  if ! skopeo --version &> /dev/null; then
     log_error "skopeo not found. Install it:"
     echo "  macOS: brew install skopeo"
     echo "  Ubuntu/Debian: sudo apt-get install skopeo"

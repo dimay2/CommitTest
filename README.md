@@ -48,6 +48,14 @@ curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scrip
 chmod 700 get_helm.sh
 ./get_helm.sh
 
+# 5. Install skopeo (for image mirroring to private ECR)
+# Use Docker container for skopeo (works in CloudShell and EC2)
+docker run --rm quay.io/skopeo/stable:latest inspect docker://docker.io/alpine:latest
+
+# Create alias for easier usage
+echo 'alias skopeo="docker run --rm -it quay.io/skopeo/stable:latest"' >> ~/.bashrc
+source ~/.bashrc
+
 ```
 
 ### 2. Requirement: Delete Default VPC
@@ -320,21 +328,6 @@ This script uses **skopeo** (industry best practice) for efficient, direct regis
 - Comprehensive logging to `mirror-logs/`
 - Support for image manifests across architectures
 - No local disk staging of images
-
-#### Prerequisites
-
-Install skopeo on your management host (skip if already installed):
-
-```bash
-# macOS
-brew install skopeo
-
-# Ubuntu/Debian
-sudo apt-get install skopeo
-
-# Amazon Linux 2
-sudo yum install skopeo
-```
 
 #### How to mirror all images
 
