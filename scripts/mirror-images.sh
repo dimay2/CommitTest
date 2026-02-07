@@ -88,43 +88,43 @@ check_requirements() {
 # Validate image manifest format
 validate_manifest() {
   log_info "Validating image manifest: $IMAGES_FILE"
+  
   if [ ! -f "$IMAGES_FILE" ]; then
     log_error "Manifest file not found: $IMAGES_FILE"
     exit 1
   fi
   
-  local valid_lines=0
-  local line_num=0
-  
-  # Read file into array to avoid stdin/pipe issues with file redirection
-  mapfile -t lines < "$IMAGES_FILE"
-  
-  for line in "${lines[@]}"; do
-    ((line_num++))
+  # Use cat to pipe file, avoiding stdin conflicts
+  cat "$IMAGES_FILE" | {
+    local valid_lines=0
+    local line_num=0
     
-    # Skip empty lines and comments
-    if [[ -z "$line" || "$line" =~ ^# ]]; then
-      continue
+    while IFS= read -r line; do
+      ((line_num++))
+      
+      # Skip empty lines
+      [ -z "$line" ] && continue
+      
+      # Skip comment lines
+      [[ "$line" =~ ^# ]] && continue
+      
+      # Count colons using tr (more reliable than grep in pipes)
+      local colon_count=$(printf '%s\n' "$line" | tr -cd ':' | wc -c)
+      
+      if [ "$colon_count" -lt 2 ]; then
+        log_error "Line $line_num: Invalid format (found $colon_count colons, need 2+): $line"
+        exit 1
+      fi
+      
+      ((valid_lines++))
+    done
+    
+    if [ "$valid_lines" -eq 0 ]; then
+      log_warning "No images found in manifest (only comments/blank lines)"
+    else
+      log_success "Manifest validation passed ($valid_lines images found)"
     fi
-    
-    # Count colons - must have at least 2 (source:tag:repo)
-    local colon_count=$(echo "$line" | grep -o ':' | wc -l || echo 0)
-    
-    if [ "$colon_count" -lt 2 ]; then
-      log_error "Invalid format on line $line_num: $line"
-      log_error "Expected format: registry/image:tag:target-repo-name (at least 2 colons)"
-      log_error "Example: quay.io/argoproj/argocd:v2.9.8:argocd-server"
-      exit 1
-    fi
-    
-    ((valid_lines++))
-  done
-  
-  if [ "$valid_lines" -eq 0 ]; then
-    log_warning "No images found in manifest (only comments/blank lines)"
-  else
-    log_success "Manifest validation passed ($valid_lines images found)"
-  fi
+  }
 }
 
 # Get ECR authentication token
@@ -176,56 +176,58 @@ mirror_images() {
   total_images=$(grep -v '^#' "$IMAGES_FILE" | grep -v '^$' | wc -l)
   log_info "Found $total_images images to mirror"
   
-  # Read file into array to avoid stdin/pipe issues
-  mapfile -t lines < "$IMAGES_FILE"
-  
-  for line in "${lines[@]}"; do
-    # Skip empty lines and comments
-    if [[ -z "$line" || "$line" =~ ^# ]]; then
-      continue
+  # Use cat to pipe file, avoiding stdin conflicts
+  cat "$IMAGES_FILE" | {
+    local successful=0
+    local failed=0
+    
+    while IFS= read -r line; do
+      # Skip empty lines and comments
+      [ -z "$line" ] && continue
+      [[ "$line" =~ ^# ]] && continue
+      
+      # Parse: split on LAST two colons only (to handle registry URLs like quay.io/image:tag:repo)
+      local target_repo="${line##*:}"          # Everything after last colon
+      local temp="${line%:*}"                  # Everything except last colon
+      local tag="${temp##*:}"                  # Last colon segment of temp
+      local source="${temp%:*}"                # Everything except last colon of temp
+      
+      # Validate parsing
+      if [[ -z "$source" || -z "$tag" || -z "$target_repo" ]]; then
+        log_error "Failed to parse line: $line"
+        ((failed++))
+        continue
+      fi
+      
+      local target="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$target_repo:$tag"
+      
+      log_info "Processing: $source:$tag -> $target_repo"
+      if retry_copy "$source:$tag" "$target"; then
+        ((successful++))
+      else
+        ((failed++))
+      fi
+    done
+    
+    # Summary
+    echo ""
+    log_info "====== MIRRORING SUMMARY ======"
+    log_info "Total images: $total_images"
+    log_success "Successful: $successful"
+    if [ $failed -gt 0 ]; then
+      log_error "Failed: $failed"
     fi
+    log_info "Log file: $MIRROR_LOG"
+    echo ""
     
-    # Parse: split on LAST two colons only (to handle registry URLs like quay.io/image:tag:repo)
-    local target_repo="${line##*:}"          # Everything after last colon
-    local temp="${line%:*}"                  # Everything except last colon
-    local tag="${temp##*:}"                  # Last colon segment of temp
-    local source="${temp%:*}"                # Everything except last colon of temp
-    
-    # Validate parsing
-    if [[ -z "$source" || -z "$tag" || -z "$target_repo" ]]; then
-      log_error "Failed to parse line: $line"
-      ((failed++))
-      continue
-    fi
-    
-    local target="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$target_repo:$tag"
-    
-    log_info "Processing: $source:$tag -> $target_repo"
-    if retry_copy "$source:$tag" "$target"; then
-      ((successful++))
+    if [ $failed -gt 0 ]; then
+      log_error "Mirror operation completed with $failed failures. See log for details."
+      return 1
     else
-      ((failed++))
+      log_success "All images mirrored successfully!"
+      return 0
     fi
-  done
-  
-  # Summary
-  echo ""
-  log_info "====== MIRRORING SUMMARY ======"
-  log_info "Total images: $total_images"
-  log_success "Successful: $successful"
-  if [ $failed -gt 0 ]; then
-    log_error "Failed: $failed"
-  fi
-  log_info "Log file: $MIRROR_LOG"
-  echo ""
-  
-  if [ $failed -gt 0 ]; then
-    log_error "Mirror operation completed with $failed failures. See log for details."
-    return 1
-  else
-    log_success "All images mirrored successfully!"
-    return 0
-  fi
+  }
 }
 
 # Main execution
