@@ -142,7 +142,12 @@ terraform init \
   -backend-config="bucket=$TF_STATE_BUCKET" \
   -backend-config="region=$AWS_REGION" \
   -backend-config="dynamodb_table=$TF_LOCK_TABLE"
-terraform apply -auto-approve
+
+# Review the plan before applying
+terraform plan -out=tfplan
+
+# Apply the planned changes
+terraform apply tfplan
 
 ```
 
