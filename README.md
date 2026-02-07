@@ -255,7 +255,226 @@ cd ../../
 
 ```
 
-## Install AWS Load Balancer Controller
+### Mirror images for an air-gapped cluster (private ECR)
+
+In a strictly private / air-gapped environment your EKS Fargate pods cannot pull images from public registries unless you provide a private image registry accessible from the VPC. The recommended pattern for this lab is:
+
+- **ECR repositories are created automatically by Terraform** (see `commitlab-infra/ecr.tf`), so you do not need to manually create them. When you run `terraform apply`, all required ECR repos are provisioned.
+- On a management host with Internet access (your admin workstation or CloudShell with Internet), pull upstream images (Helm chart images), re-tag them to your private ECR repos, and push them.
+- Ensure the EKS VPC has VPC endpoints for ECR and S3 (Terraform creates these in `vpc.tf`), so Fargate can access ECR without Internet.
+- Update Helm `values` (or use `--set`) to point charts at your private ECR image URIs.
+
+### Step 1: Retrieve ECR repository URIs from Terraform outputs
+
+After `terraform apply` completes, run:
+
+```bash
+cd commitlab-infra
+terraform output ecr_repository_urls
+```
+
+This will print all ECR repo URIs in your account. Example output:
+```
+{
+  "argocd_server" = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/argocd-server"
+  "argocd_repo_server" = "123456789012.dkr.ecr.eu-north-1.amazonaws.com/argocd-repo-server"
+  ...
+}
+```
+
+Save this output or reference it in your mirroring scripts below.
+
+### Step 2: Mirror images from upstream into your private ECR (management host with Internet)
+
+#### Option A: Simple Docker pull / tag / push (manual, repo by repo)
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+AWS_REGION=eu-north-1
+
+# Login to ECR
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+# Example: mirror ArgoCD Server image
+UPSTREAM_IMAGE="quay.io/argoproj/argocd:v2.9.8"
+ECR_REPO="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/argocd-server"
+
+docker pull $UPSTREAM_IMAGE
+docker tag $UPSTREAM_IMAGE $ECR_REPO:v2.9.8
+docker push $ECR_REPO:v2.9.8
+
+# Repeat for other images...
+```
+
+#### Option B: Use skopeo for direct registry-to-registry copy (faster, no local storage)
+
+```bash
+# Install skopeo on your management host (skip if already installed)
+# On macOS: brew install skopeo
+# On Ubuntu/Debian: sudo apt-get install skopeo
+# On Amazon Linux 2: sudo yum install skopeo
+
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+AWS_REGION=eu-north-1
+
+# Get ECR login token
+export SKOPEO_ECR_PASSWORD=$(aws ecr get-login-password --region $AWS_REGION)
+
+# Example: copy ArgoCD Server from upstream to private ECR
+skopeo copy \
+  --dest-creds AWS:$SKOPEO_ECR_PASSWORD \
+  docker://quay.io/argoproj/argocd:v2.9.8 \
+  docker://$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/argocd-server:v2.9.8
+
+# Repeat for other images...
+```
+
+#### Option C: Automated script for multiple images at once
+
+Create a file `mirror-images.sh` (adapt with your specific versions):
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+AWS_REGION=${AWS_REGION:-eu-north-1}
+
+# Image mappings: "upstream-image:tag:ecr-repo-name"
+# Obtain specific versions from the Helm chart values you plan to install
+IMAGES=(
+  "quay.io/argoproj/argocd:v2.9.8:argocd-server"
+  "quay.io/argoproj/argocd:v2.9.8:argocd-repo-server"
+  "quay.io/argoproj/argocd:v2.9.8:argocd-application-controller"
+  "quay.io/argoproj/argocd:v2.9.8:argocd-applicationset-controller"
+  "quay.io/argoproj/argocd:v2.9.8:argocd-notifications-controller"
+  "dexidp/dex:v2.38.0:argocd-dex-server"
+  "redis:7.0.14-alpine:argocd-redis"
+  "registry.k8s.io/metrics-server/metrics-server:v0.6.4:metrics-server"
+  "kubernetesui/dashboard:v2.7.0:kubernetes-dashboard"
+  "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon-k8s-cni:v1.14.1:aws-load-balancer-controller"
+  "python:3.11-slim:lab-backend"
+  "node:18-alpine:lab-frontend"
+)
+
+# Login to ECR
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+for entry in "${IMAGES[@]}"; do
+  IFS=":" read -r upstream_image upstream_tag repo_name <<< "$entry"
+  target_repo="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$repo_name"
+  
+  echo "Mirroring $upstream_image:$upstream_tag -> $target_repo:$upstream_tag"
+  docker pull "$upstream_image:$upstream_tag"
+  docker tag "$upstream_image:$upstream_tag" "$target_repo:$upstream_tag"
+  docker push "$target_repo:$upstream_tag"
+done
+
+echo "All images mirrored successfully!"
+```
+
+Run it:
+```bash
+chmod +x mirror-images.sh
+./mirror-images.sh
+```
+
+### Step 3: Find upstream image versions
+
+Before mirroring, you need to know which images and versions are used by each Helm chart. Run:
+
+```bash
+# View chart values and images
+helm show values argo/argo-cd --version 6.7.11
+helm show values kubernetes-sigs/metrics-server --version 3.12.1
+helm show values bitnami/redis --version 18.0.0
+# etc.
+
+# Or download and inspect the chart
+helm pull argo/argo-cd --untar
+grep -r "image:" ./argo-cd/ | grep repository
+```
+
+Document the images you find and adapt the `mirror-images.sh` script accordingly.
+
+### Step 4: Ensure VPC endpoints exist for private ECR pulls
+
+When you run `terraform apply`, the following endpoints are created automatically:
+- S3 gateway endpoint: `com.amazonaws.$AWS_REGION.s3`
+- ECR API interface endpoint: `com.amazonaws.$AWS_REGION.ecr.api`
+- ECR Docker interface endpoint: `com.amazonaws.$AWS_REGION.ecr.dkr`
+- STS interface endpoint: `com.amazonaws.$AWS_REGION.sts` (optional, for token exchange)
+
+Verify they exist (optional):
+
+```bash
+aws ec2 describe-vpc-endpoints --region $AWS_REGION --query 'VpcEndpoints[?ServiceName==`com.amazonaws.'$AWS_REGION'.ecr.api`]'
+aws ec2 describe-vpc-endpoints --region $AWS_REGION --query 'VpcEndpoints[?ServiceName==`com.amazonaws.'$AWS_REGION'.s3`]'
+```
+
+### Step 5: Update Helm values to reference private ECR images
+
+Once images are pushed to ECR, update your Helm installation commands to use the private ECR URIs. Examples:
+
+#### ArgoCD (update argocd.tf or use CLI overrides):
+
+```bash
+helm upgrade --install argocd argo/argo-cd \
+  --namespace argocd --create-namespace \
+  --set global.image.repository=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com \
+  --set server.image.repository=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/argocd-server \
+  --set server.image.tag=v2.9.8 \
+  --set repoServer.image.repository=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/argocd-repo-server \
+  --set repoServer.image.tag=v2.9.8 \
+  # ... (other overrides)
+```
+
+#### Metrics Server:
+
+```bash
+helm upgrade --install metrics-server metrics-server/metrics-server \
+  --namespace monitoring --create-namespace \
+  --set image.repository=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/metrics-server \
+  --set image.tag=v0.6.4
+```
+
+Or update `argocd.tf` and `monitoring.tf` Helm values blocks to reference your ECR URIs:
+
+```hcl
+values = [
+  <<-EOT
+  server:
+    image:
+      repository: ${var.ecr_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-server
+      tag: v2.9.8
+  EOT
+]
+```
+
+### Step 6: Optional — Create imagePullSecrets if needed
+
+For most setups with proper IAM/IRSA roles, imagePullSecrets are not required. But if pods need explicit Docker credentials:
+
+```bash
+aws ecr get-login-password --region $AWS_REGION | kubectl create secret docker-registry ecr-regcred \
+  --docker-server=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com \
+  --docker-username=AWS --docker-password-stdin --namespace argocd
+```
+
+### Notes and best practices
+
+- **Keep image tags consistent**: Preserve the original tag (e.g., `v2.9.8`) when mirroring so you know which upstream version you have.
+- **Use skopeo for large image sets**: Faster and avoids large temporary disk usage.
+- **Verify endpoint connectivity**: Ensure the security group on ECR endpoints allows inbound HTTPS (port 443) from Fargate pod security groups.
+- **Check ECR repository policy**: By default, Terraform repositories allow pull/push from the same AWS account; if using cross-account setups, adjust the policy.
+- **Test pulls from the cluster**: Once deployed, run a test pod and verify it can pull from your ECR:
+  ```bash
+  kubectl run --image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/argocd-server:v2.9.8 test-pull --rm -it -- sh
+  ```
+
+---
+
+# Install AWS Load Balancer Controller
 
 We need to install the controller and ensure it uses the IAM Role created by Terraform (`commitlab-cluster-alb-controller`).
 
