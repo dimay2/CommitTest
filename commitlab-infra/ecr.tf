@@ -4,7 +4,7 @@
 
 # ArgoCD Server
 resource "aws_ecr_repository" "argocd_server" {
-  repository_name            = "argocd-server"
+  name                       = "argocd-server"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -17,7 +17,7 @@ resource "aws_ecr_repository" "argocd_server" {
 
 # ArgoCD Repo Server
 resource "aws_ecr_repository" "argocd_repo_server" {
-  repository_name            = "argocd-repo-server"
+  name                       = "argocd-repo-server"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -30,7 +30,7 @@ resource "aws_ecr_repository" "argocd_repo_server" {
 
 # ArgoCD Application Controller
 resource "aws_ecr_repository" "argocd_application_controller" {
-  repository_name            = "argocd-application-controller"
+  name                       = "argocd-application-controller"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -43,7 +43,7 @@ resource "aws_ecr_repository" "argocd_application_controller" {
 
 # ArgoCD ApplicationSet Controller
 resource "aws_ecr_repository" "argocd_applicationset_controller" {
-  repository_name            = "argocd-applicationset-controller"
+  name                       = "argocd-applicationset-controller"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -56,7 +56,7 @@ resource "aws_ecr_repository" "argocd_applicationset_controller" {
 
 # ArgoCD Notifications Controller
 resource "aws_ecr_repository" "argocd_notifications_controller" {
-  repository_name            = "argocd-notifications-controller"
+  name                       = "argocd-notifications-controller"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -69,7 +69,7 @@ resource "aws_ecr_repository" "argocd_notifications_controller" {
 
 # ArgoCD Dex Server
 resource "aws_ecr_repository" "argocd_dex_server" {
-  repository_name            = "argocd-dex-server"
+  name                       = "argocd-dex-server"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -82,7 +82,7 @@ resource "aws_ecr_repository" "argocd_dex_server" {
 
 # ArgoCD Redis
 resource "aws_ecr_repository" "argocd_redis" {
-  repository_name            = "argocd-redis"
+  name                       = "argocd-redis"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -95,7 +95,7 @@ resource "aws_ecr_repository" "argocd_redis" {
 
 # Metrics Server (for Kubernetes Dashboard and Pod Metrics)
 resource "aws_ecr_repository" "metrics_server" {
-  repository_name            = "metrics-server"
+  name                       = "metrics-server"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -108,7 +108,7 @@ resource "aws_ecr_repository" "metrics_server" {
 
 # Kubernetes Dashboard
 resource "aws_ecr_repository" "kubernetes_dashboard" {
-  repository_name            = "kubernetes-dashboard"
+  name                       = "kubernetes-dashboard"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -121,7 +121,7 @@ resource "aws_ecr_repository" "kubernetes_dashboard" {
 
 # AWS Load Balancer Controller
 resource "aws_ecr_repository" "aws_load_balancer_controller" {
-  repository_name            = "aws-load-balancer-controller"
+  name                       = "aws-load-balancer-controller"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -134,7 +134,7 @@ resource "aws_ecr_repository" "aws_load_balancer_controller" {
 
 # Application Backend
 resource "aws_ecr_repository" "lab_backend" {
-  repository_name            = "lab-backend"
+  name                       = "lab-backend"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -147,7 +147,7 @@ resource "aws_ecr_repository" "lab_backend" {
 
 # Application Frontend
 resource "aws_ecr_repository" "lab_frontend" {
-  repository_name            = "lab-frontend"
+  name                       = "lab-frontend"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
@@ -160,7 +160,7 @@ resource "aws_ecr_repository" "lab_frontend" {
 
 # CoreDNS (if needed for custom DNS setup)
 resource "aws_ecr_repository" "coredns" {
-  repository_name            = "coredns"
+  name                       = "coredns"
   image_tag_mutability       = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = false
