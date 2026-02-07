@@ -64,7 +64,7 @@ log_info() {
 check_requirements() {
   log_info "Checking prerequisites..."
   
-  if ! skopeo --version &> /dev/null; then
+  if skopeo --version &> /dev/null; then
     log_error "skopeo not found. Install it:"
     echo "  macOS: brew install skopeo"
     echo "  Ubuntu/Debian: sudo apt-get install skopeo"
@@ -88,20 +88,35 @@ check_requirements() {
 # Validate image manifest format
 validate_manifest() {
   log_info "Validating image manifest: $IMAGES_FILE"
+  if [ ! -f "$IMAGES_FILE" ]; then
+    log_error "Manifest file not found: $IMAGES_FILE"
+    exit 1
+  fi
+  
   local line_num=0
+  local valid_lines=0
   while IFS= read -r line; do
     ((line_num++))
     # Skip empty lines and comments
     [[ -z "$line" || "$line" =~ ^# ]] && continue
     
-    # Check format: image:tag:repo-name
-    if [[ ! "$line" =~ ^[^:]+:[^:]+:[^:]+$ ]]; then
+    # Check format: must have exactly 2 colons (registry/image:tag:repo-name)
+    # Count colons in the line
+    local colon_count=$(echo "$line" | grep -o ':' | wc -l)
+    if [ "$colon_count" -lt 2 ]; then
       log_error "Invalid format on line $line_num: $line"
-      log_error "Expected format: source-image:tag:target-repo-name"
+      log_error "Expected format: registry/image:tag:target-repo-name (at least 2 colons)"
+      log_error "Example: quay.io/argoproj/argocd:v2.9.8:argocd-server"
       exit 1
     fi
+    ((valid_lines++))
   done < "$IMAGES_FILE"
-  log_success "Manifest validation passed"
+  
+  if [ "$valid_lines" -eq 0 ]; then
+    log_warning "No images found in manifest (only comments/blank lines)"
+  else
+    log_success "Manifest validation passed ($valid_lines images found)"
+  fi
 }
 
 # Get ECR authentication token
@@ -153,14 +168,27 @@ mirror_images() {
   total_images=$(grep -v '^#' "$IMAGES_FILE" | grep -v '^$' | wc -l)
   log_info "Found $total_images images to mirror"
   
-  while IFS=':' read -r source_image tag target_repo; do
+  while IFS= read -r line; do
     # Skip empty lines and comments
-    [[ -z "$source_image" || "$source_image" =~ ^# ]] && continue
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
     
-    local source="${source_image}:${tag}"
+    # Parse: split on LAST two colons only (to handle registry URLs like quay.io/image:tag:repo)
+    local target_repo="${line##*:}"          # Everything after last colon
+    local temp="${line%:*}"                  # Everything except last colon
+    local tag="${temp##*:}"                  # Last colon segment of temp
+    local source="${temp%:*}"                # Everything except last colon of temp
+    
+    # Validate parsing
+    if [[ -z "$source" || -z "$tag" || -z "$target_repo" ]]; then
+      log_error "Failed to parse line: $line"
+      ((failed++))
+      continue
+    fi
+    
     local target="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$target_repo:$tag"
     
-    if retry_copy "$source" "$target"; then
+    log_info "Processing: $source:$tag -> $target_repo"
+    if retry_copy "$source:$tag" "$target"; then
       ((successful++))
     else
       ((failed++))
