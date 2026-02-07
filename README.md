@@ -80,7 +80,7 @@ cd CommitTest
 Set the required variables for Terraform and AWS.
 ```bash
 export TF_VAR_db_password="YOUR_DB_PASSWORD"
-export AWS_REGION="us-east-1"
+export AWS_REGION="eu-north-1"
 export TF_STATE_BUCKET="<your-unique-terraform-bucket>"
 export TF_LOCK_TABLE="<your-terraform-lock-table>"
 
@@ -201,7 +201,7 @@ cat <<EOF > update-dns.sh
 # Route53 Air-Gap Bridge Script
 HOSTED_ZONE_NAME="commit.local"
 RECORD_NAME="Lab-commit-task.commit.local"
-REGION="us-east-1"
+REGION="eu-north-1"
 
 echo "--> 1. Reading Terraform outputs..."
 CLUSTER_NAME=\$(terraform -chdir=commitlab-infra output -raw cluster_name)

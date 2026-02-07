@@ -6,7 +6,7 @@
 
 # Configuration
 RECORD_NAME="Lab-commit-task.commit.local"
-REGION="us-east-1"
+REGION="eu-north-1"
 
 echo "--> 1. Reading Infrastructure Details..."
 # We fetch the Cluster Name and Zone ID from Terraform outputs
