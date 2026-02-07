@@ -93,10 +93,13 @@ validate_manifest() {
     exit 1
   fi
   
-  local line_num=0
   local valid_lines=0
+  local line_num=0
   
-  while read -r line; do
+  # Read file into array to avoid stdin/pipe issues with file redirection
+  mapfile -t lines < "$IMAGES_FILE"
+  
+  for line in "${lines[@]}"; do
     ((line_num++))
     
     # Skip empty lines and comments
@@ -115,7 +118,7 @@ validate_manifest() {
     fi
     
     ((valid_lines++))
-  done < "$IMAGES_FILE"
+  done
   
   if [ "$valid_lines" -eq 0 ]; then
     log_warning "No images found in manifest (only comments/blank lines)"
@@ -173,9 +176,14 @@ mirror_images() {
   total_images=$(grep -v '^#' "$IMAGES_FILE" | grep -v '^$' | wc -l)
   log_info "Found $total_images images to mirror"
   
-  while IFS= read -r line; do
+  # Read file into array to avoid stdin/pipe issues
+  mapfile -t lines < "$IMAGES_FILE"
+  
+  for line in "${lines[@]}"; do
     # Skip empty lines and comments
-    [[ -z "$line" || "$line" =~ ^# ]] && continue
+    if [[ -z "$line" || "$line" =~ ^# ]]; then
+      continue
+    fi
     
     # Parse: split on LAST two colons only (to handle registry URLs like quay.io/image:tag:repo)
     local target_repo="${line##*:}"          # Everything after last colon
@@ -198,7 +206,7 @@ mirror_images() {
     else
       ((failed++))
     fi
-  done < "$IMAGES_FILE"
+  done
   
   # Summary
   echo ""
