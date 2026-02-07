@@ -6,7 +6,6 @@ This repository contains the Terraform infrastructure, Helm charts, and applicat
 - [Prerequisites & Tool Installation](#prerequisites--tool-installation)
 - [Repository layout](#repository-layout)
 - [Quick start](#quick-start)
-- [Terraform backend (S3 + DynamoDB)](#terraform-backend-s3--dynamodb)
 - [Build & push container images](#build--push-container-images)
 - [Install AWS Load Balancer Controller](#install-aws-load-balancer-controller)
 - [Deploy application (Helm)](#deploy-application-helm)
@@ -115,7 +114,22 @@ export TF_LOCK_TABLE="<your-terraform-lock-table>"
 
 ```
 
-3. **Initialize and Apply Terraform:**
+3. **Create Backend Resources (S3 + DynamoDB):**
+Create the S3 bucket and DynamoDB table **before** initializing Terraform.
+
+```bash
+aws s3 mb s3://$TF_STATE_BUCKET --region $AWS_REGION
+aws s3api put-bucket-versioning --bucket $TF_STATE_BUCKET --versioning-configuration Status=Enabled
+
+aws dynamodb create-table \
+  --table-name $TF_LOCK_TABLE \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+
+```
+
+4. **Initialize and Apply Terraform:**
 Navigate to the infrastructure directory and provision the resources.
 **Note:** This step can take 15-20 minutes.
 
@@ -129,28 +143,12 @@ terraform apply -auto-approve
 
 ```
 
-4. **Configure kubectl:**
+5. **Configure kubectl:**
 Connect your CLI to the newly created EKS cluster.
 
 ```bash
 export CLUSTER_NAME=$(terraform output -raw cluster_name)
 aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
-
-```
-
-## Terraform backend (S3 + DynamoDB)
-
-Ensure a versioned S3 bucket and DynamoDB table exist for state management:
-
-```bash
-aws s3 mb s3://$TF_STATE_BUCKET --region $AWS_REGION
-aws s3api put-bucket-versioning --bucket $TF_STATE_BUCKET --versioning-configuration Status=Enabled
-
-aws dynamodb create-table \
-  --table-name $TF_LOCK_TABLE \
-  --attribute-definitions AttributeName=LockID,AttributeType=S \
-  --key-schema AttributeName=LockID,KeyType=HASH \
-  --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
 
 ```
 
