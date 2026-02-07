@@ -13,9 +13,3 @@ resource "aws_route53_zone" "private" {
     Name = "${var.app_name}-private-zone"
   }
 }
-
-# 2. Output the Zone ID (Needed for the script in Step 3)
-output "hosted_zone_id" {
-  description = "The ID of the Private Route53 Zone"
-  value       = aws_route53_zone.private.zone_id
-}
