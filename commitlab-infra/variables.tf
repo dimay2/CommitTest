@@ -65,6 +65,36 @@ variable "argocd_repo_server_image" {
   default     = ""
 }
 
+variable "argocd_application_controller_image" {
+  description = "ArgoCD application controller image URI (private ECR)"
+  type        = string
+  default     = ""
+}
+
+variable "argocd_applicationset_image" {
+  description = "ArgoCD ApplicationSet controller image URI (private ECR)"
+  type        = string
+  default     = ""
+}
+
+variable "argocd_dex_image" {
+  description = "ArgoCD Dex (SSO) image URI (private ECR)"
+  type        = string
+  default     = ""
+}
+
+variable "argocd_notifications_image" {
+  description = "ArgoCD notifications controller image URI (private ECR)"
+  type        = string
+  default     = ""
+}
+
+variable "argocd_redis_image" {
+  description = "ArgoCD redis image URI (private ECR)"
+  type        = string
+  default     = ""
+}
+
 variable "metrics_server_image" {
   description = "Metrics server image URI (private ECR)"
   type        = string
