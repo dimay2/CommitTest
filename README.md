@@ -521,8 +521,7 @@ By default, CoreDNS is tainted to run only on EC2 nodes. Since this cluster uses
 # Remove the EC2-only compute-type annotation from CoreDNS
 kubectl patch deployment coredns \
   -n kube-system \
-  --type json \
-  -p='[{"op": "remove", "path": "/spec/template/metadata/annotations/eks.amazonaws.com~1compute-type"}]'
+  -p '{"spec":{"template":{"metadata":{"annotations":{"eks.amazonaws.com/compute-type":null}}}}}'
 
 # Restart the CoreDNS deployment to apply the changes
 kubectl rollout restart deployment coredns -n kube-system
