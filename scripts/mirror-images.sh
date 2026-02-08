@@ -208,6 +208,13 @@ mirror_images() {
       continue
     fi
     
+    # Check if image already exists in ECR
+    if aws ecr describe-images --repository-name "$target_repo" --image-ids imageTag="$tag" --region "$AWS_REGION" >/dev/null 2>&1; then
+      log_success "Image $target_repo:$tag already exists in ECR. Skipping."
+      ((successful++))
+      continue
+    fi
+
     local target="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$target_repo:$tag"
     
     log_info "Processing: $source:$tag -> ECR:$target_repo:$tag"
