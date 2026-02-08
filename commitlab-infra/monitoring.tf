@@ -26,7 +26,7 @@ resource "helm_release" "metrics_server" {
 # 2. Kubernetes Dashboard (The UI to "surf" to)
 resource "helm_release" "kubernetes_dashboard" {
   name       = "kubernetes-dashboard"
-  repository = var.kubernetes_dashboard_chart_repo == "" ? null : var.kubernetes_dashboard_chart_repo
+  repository = var.kubernetes_dashboard_chart_repo == "" ? "https://kubernetes.github.io/dashboard/" : var.kubernetes_dashboard_chart_repo
   chart      = var.kubernetes_dashboard_chart
   version    = "7.3.2"
   namespace  = "monitoring"
