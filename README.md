@@ -119,13 +119,14 @@ cd CommitTest
 
 2. **Configure Environment Variables:**
 Set the required variables for Terraform and AWS. All AWS resources will be tagged with `Environment=dimatest` via Terraform's default_tags.
+The S3 bucket and DynamoDB table for the Terraform backend must also be configured in `commitlab-infra/backend.tf`.
 
 ```bash
 export TF_VAR_db_password="YOUR_DB_PASSWORD"
 export TF_VAR_environment_tag="dimatest"
 export AWS_REGION="eu-north-1"
-export TF_STATE_BUCKET="<your-unique-terraform-bucket>"
-export TF_LOCK_TABLE="<your-terraform-lock-table>"
+export TF_STATE_BUCKET="<your-unique-terraform-bucket>" # Must match 'bucket' in backend.tf
+export TF_LOCK_TABLE="<your-terraform-lock-table>"   # Must match 'dynamodb_table' in backend.tf
 
 ```
 
@@ -219,10 +220,12 @@ Navigate to the infrastructure directory and provision the resources.
 
 ```bash
 cd commitlab-infra
-terraform init \
-  -backend-config="bucket=$TF_STATE_BUCKET" \
-  -backend-config="region=$AWS_REGION" \
-  -backend-config="dynamodb_table=$TF_LOCK_TABLE"
+# terraform init \
+#   -backend-config="bucket=$TF_STATE_BUCKET" \
+#   -backend-config="region=$AWS_REGION" \
+#   -backend-config="dynamodb_table=$TF_LOCK_TABLE"
+
+terraform init
 
 # Review the plan before applying
 terraform plan -out=tfplan
@@ -389,7 +392,7 @@ Example output:
 2025-02-07 14:23:45 [INFO] Region: eu-north-1
 2025-02-07 14:23:45 [INFO] Manifest: .github/mirror-images.txt
 ...
-2025-02-07 14:24:12 [SUCCESS] Successfully mirrored: quay.io/argoproj/argocd:v2.9.8 -> 123456789012.dkr.ecr.eu-north-1.amazonaws.com/argocd-server:v2.9.8
+2025-02-07 14:24:12 [SUCCESS] Successfully mirrored: quay.io/argoproj/argocd:v2.10.6 -> 123456789012.dkr.ecr.eu-north-1.amazonaws.com/argocd-server:v2.10.6
 ...
 ====== MIRRORING SUMMARY ======
 Total images: 12
@@ -406,8 +409,8 @@ Create a custom manifest and pass it to the script:
 ```bash
 # Create custom list (e.g., only ArgoCD images)
 cat > custom-images.txt <<EOF
-quay.io/argoproj/argocd:v2.9.8:argocd-server
-quay.io/argoproj/argocd:v2.9.8:argocd-repo-server
+quay.io/argoproj/argocd:v2.10.6:argocd-server
+quay.io/argoproj/argocd:v2.10.6:argocd-repo-server
 EOF
 
 ./scripts/mirror-images.sh custom-images.txt
