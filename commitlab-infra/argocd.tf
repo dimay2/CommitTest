@@ -19,10 +19,10 @@ resource "helm_release" "argocd" {
       replicas: 1
 
     # Global image override to ensure chart uses private ECR for quay.io/argoproj/argocd images
-    global:
-      image:
-        repository: ${var.argocd_global_image_repo != "" ? var.argocd_global_image_repo : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd"}
-        tag: v2.9.8
+      global:
+        image:
+          repository: ${var.argocd_global_image_repo != "" ? var.argocd_global_image_repo : ""}
+          tag: v2.9.8
 
     # Server (argocd-server)
     server:
