@@ -44,16 +44,16 @@ resource "helm_release" "kubernetes_dashboard" {
     api:
       image:
         repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard-api
-        tag: v1.4.2
+        tag: 1.4.2
     web:
       image:
         repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard-web
-        tag: v1.4.2
+        tag: 1.4.2
     metricsScraper:
       enabled: true
       image:
         repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard-metrics-scraper
-        tag: v1.1.1
+        tag: 1.1.1
     kong:
       image:
         repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kong
