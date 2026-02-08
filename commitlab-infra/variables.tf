@@ -95,6 +95,12 @@ variable "argocd_redis_image" {
   default     = ""
 }
 
+variable "argocd_global_image_repo" {
+  description = "Global ArgoCD image repository base (private ECR). If empty, constructed from account and region to use 'argocd' repo."
+  type        = string
+  default     = ""
+}
+
 variable "metrics_server_image" {
   description = "Metrics server image URI (private ECR)"
   type        = string
@@ -105,4 +111,17 @@ variable "kubernetes_dashboard_image" {
   description = "Kubernetes dashboard image URI (private ECR)"
   type        = string
   default     = ""
+}
+
+# Optional Helm chart source controls for air-gapped environments
+variable "kubernetes_dashboard_chart_repo" {
+  description = "Helm chart repository URL for Kubernetes Dashboard. Set to empty string to use a local chart archive."
+  type        = string
+  default     = "https://kubernetes.github.io/dashboard/"
+}
+
+variable "kubernetes_dashboard_chart" {
+  description = "Helm chart name (or local chart directory/archive path) for Kubernetes Dashboard. If `kubernetes_dashboard_chart_repo` is empty, set this to a local chart archive path."
+  type        = string
+  default     = "kubernetes-dashboard"
 }
