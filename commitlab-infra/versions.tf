@@ -19,11 +19,6 @@ terraform {
       version = "~> 4.0"
     }
   }
-
-  backend "s3" {
-    key     = "commitlab/terraform.tfstate"
-    encrypt = true
-  }
 }
 
 provider "aws" {
@@ -63,4 +58,3 @@ provider "helm" {
 
 # Data source to get current AWS account ID
 data "aws_caller_identity" "current" {}
-

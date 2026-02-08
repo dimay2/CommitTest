@@ -220,11 +220,6 @@ Navigate to the infrastructure directory and provision the resources.
 
 ```bash
 cd commitlab-infra
-# terraform init \
-#   -backend-config="bucket=$TF_STATE_BUCKET" \
-#   -backend-config="region=$AWS_REGION" \
-#   -backend-config="dynamodb_table=$TF_LOCK_TABLE"
-
 terraform init
 
 # Review the plan before applying
