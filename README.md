@@ -579,7 +579,7 @@ cat <<EOF > update-dns.sh
 #!/bin/bash
 # Route53 Air-Gap Bridge Script
 HOSTED_ZONE_NAME="commit.local"
-RECORD_NAME="Lab-commit-task.commit.local"
+RECORD_NAME="lab-commit-task.commit.local"
 REGION="eu-north-1"
 
 echo "--> 1. Reading Terraform outputs..."
@@ -693,7 +693,7 @@ aws ssm start-session --target $INSTANCE_ID --document-name AWS-StartPortForward
 3. **Verify Application Access (DNS Test):**
 
 * Open Chrome on the Windows instance.
-* Navigate to `https://Lab-commit-task.commit.local`.
+* Navigate to `https://lab-commit-task.commit.local`.
 * **Success Criteria:** The page loads with the app version string.
 * **Note:** If you see "DNS_PROBE_FINISHED_NXDOMAIN", rerun the `update-dns.sh` script.
 

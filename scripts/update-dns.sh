@@ -5,7 +5,7 @@
 # ------------------------------------------------------------------
 
 # Configuration
-RECORD_NAME="Lab-commit-task.commit.local"
+RECORD_NAME="lab-commit-task.commit.local"
 REGION="eu-north-1"
 
 echo "--> 1. Reading Infrastructure Details..."

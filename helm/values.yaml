@@ -8,5 +8,5 @@ frontend:
   version: "v1.0.0"
 
 ingress:
-  host: "Lab-commit-task.commit.local"
+  host: "lab-commit-task.commit.local"
   certificateArn: "" # Injected by CLI

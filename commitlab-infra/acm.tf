@@ -5,7 +5,7 @@ resource "tls_private_key" "app_key" {
 }
 
 # 2. Generate a Self-Signed Certificate
-# Common Name matches the required domain: Lab-commit-task.commit.local
+# Common Name matches the required domain: lab-commit-task.commit.local
 resource "tls_self_signed_cert" "app_cert" {
   private_key_pem = tls_private_key.app_key.private_key_pem
 
