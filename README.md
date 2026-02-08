@@ -99,6 +99,7 @@ fi
 * `app/backend/` — Backend application and Dockerfile.
 * `app/frontend/` — Frontend application and Dockerfile.
 * `helm/` — Helm chart for the application deployment.
+* `commitlab-infra/charts/` — Vendored Helm charts for air-gapped installation.
 * `scripts/` — Utility scripts including `mirror-images.sh` for mirroring container images to private ECR.
 * `.github/mirror-images.txt` — Image manifest for the mirroring script.
 * `update-dns.sh` — **Bridge Script** to update Route53 in this air-gapped environment.

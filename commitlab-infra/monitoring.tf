@@ -3,8 +3,7 @@ data "aws_ecr_authorization_token" "token" {}
 # 1. Metrics Server (Required for Fargate & Dashboard to see CPU/RAM)
 resource "helm_release" "metrics_server" {
   name             = "metrics-server"
-  repository       = "https://kubernetes-sigs.github.io/metrics-server/"
-  chart            = "metrics-server"
+  chart            = "${path.module}/charts/metrics-server"
   version          = "3.12.1"
   namespace        = "monitoring"
   create_namespace = true
@@ -28,12 +27,9 @@ resource "helm_release" "metrics_server" {
 # 2. Kubernetes Dashboard (The UI to "surf" to)
 resource "helm_release" "kubernetes_dashboard" {
   name       = "kubernetes-dashboard"
-  repository = var.kubernetes_dashboard_chart_repo == "" ? "oci://${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com" : var.kubernetes_dashboard_chart_repo
-  chart      = var.kubernetes_dashboard_chart
-  version    = "v2.7.0"
+  chart      = "${path.module}/charts/kubernetes-dashboard"
+  version    = "6.0.8" # Chart version 6.0.8 installs App version v2.7.0
   namespace  = "monitoring"
-  repository_username = data.aws_ecr_authorization_token.token.user_name
-  repository_password = data.aws_ecr_authorization_token.token.password
 
   # Wait for Metrics Server to be ready first
   depends_on = [helm_release.metrics_server]
