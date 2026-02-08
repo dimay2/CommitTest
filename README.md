@@ -97,7 +97,7 @@ fi
 * `commitlab-infra/` — Terraform for **Strictly Private** networking, EKS v1.30, AWS Load Balancer Controller, ArgoCD, Monitoring, RDS, and Route53 Private Zone.
 * `app/backend/` — Backend application and Dockerfile.
 * `app/frontend/` — Frontend application and Dockerfile.
-* `helm/` — Helm chart for the application deployment.
+* `helm/` — Helm chart defining the **Frontend**, **Backend**, and **ALB Ingress** resources.
 * `commitlab-infra/charts/` — Vendored Helm charts for air-gapped installation.
 * `scripts/` — Utility scripts including `mirror-images.sh` for mirroring container images to private ECR.
 * `scripts/vendor-charts.sh` — Script to download Helm charts locally.
@@ -545,7 +545,11 @@ kubectl get pods -n kube-system -l k8s-app=kube-dns -o wide
 
 ## Deploy application (Helm)
 
-Deploy the application using the local Helm chart.
+Deploy the application using the local Helm chart. **This chart provisions the full application stack required by the lab:**
+
+1.  **Frontend Pods**: The web interface (Hello Lab-commit).
+2.  **Backend Pods**: The Python API connecting to the RDS database.
+3.  **ALB Ingress**: An AWS Application Load Balancer that routes traffic to the frontend and handles SSL termination.
 
 ```bash
 # Create Kubernetes secret for DB credentials
