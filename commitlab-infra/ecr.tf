@@ -119,6 +119,19 @@ resource "aws_ecr_repository" "kubernetes_dashboard" {
   tags = { Name = "${var.app_name}-kubernetes-dashboard" }
 }
 
+# Kubernetes Dashboard Metrics Scraper
+resource "aws_ecr_repository" "kubernetes_dashboard_metrics_scraper" {
+  name                       = "kubernetes-dashboard-metrics-scraper"
+  image_tag_mutability       = "IMMUTABLE"
+  image_scanning_configuration {
+    scan_on_push = false
+  }
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+  tags = { Name = "${var.app_name}-kubernetes-dashboard-metrics-scraper" }
+}
+
 # AWS Load Balancer Controller
 resource "aws_ecr_repository" "aws_load_balancer_controller" {
   name                       = "aws-load-balancer-controller"
@@ -184,6 +197,7 @@ resource "aws_ecr_lifecycle_policy" "cleanup" {
     aws_ecr_repository.argocd_redis.name,
     aws_ecr_repository.metrics_server.name,
     aws_ecr_repository.kubernetes_dashboard.name,
+    aws_ecr_repository.kubernetes_dashboard_metrics_scraper.name,
     aws_ecr_repository.aws_load_balancer_controller.name,
     aws_ecr_repository.lab_backend.name,
     aws_ecr_repository.lab_frontend.name,

@@ -22,7 +22,7 @@ redis:7.0.14-alpine:argocd-redis
 # ============================================================================
 registry.k8s.io/metrics-server/metrics-server:v0.6.4:metrics-server
 kubernetesui/dashboard:v2.7.0:kubernetes-dashboard
-kubernetesui/dashboard-metrics-scraper:v1.0.8:kubernetes-dashboard-metrics-scraper
+kubernetesui/metrics-scraper:v1.0.8:kubernetes-dashboard-metrics-scraper
 
 # ============================================================================
 # AWS Load Balancer Controller

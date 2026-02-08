@@ -38,6 +38,7 @@ output "ecr_repository_urls" {
     argocd_redis                        = aws_ecr_repository.argocd_redis.repository_url
     metrics_server                      = aws_ecr_repository.metrics_server.repository_url
     kubernetes_dashboard                = aws_ecr_repository.kubernetes_dashboard.repository_url
+    kubernetes_dashboard_metrics_scraper = aws_ecr_repository.kubernetes_dashboard_metrics_scraper.repository_url
     aws_load_balancer_controller        = aws_ecr_repository.aws_load_balancer_controller.repository_url
     lab_backend                         = aws_ecr_repository.lab_backend.repository_url
     lab_frontend                        = aws_ecr_repository.lab_frontend.repository_url
