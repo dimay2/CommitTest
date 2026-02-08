@@ -289,9 +289,9 @@ docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:3.11-slim
 
 # Build and push Frontend
 cd ../frontend
-docker build -t lab-frontend:18-alpine .
-docker tag lab-frontend:18-alpine $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:18-alpine
-docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:18-alpine
+docker build -t lab-frontend:3.11-slim .
+docker tag lab-frontend:3.11-slim $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:3.11-slim
+docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:3.11-slim
 
 # Return to root
 cd ../../
@@ -560,7 +560,7 @@ kubectl create secret generic backend-secrets \
 cd helm
 helm install lab-app . \
   --set backend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:3.11-slim \
-  --set frontend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:18-alpine \
+  --set frontend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:3.11-slim \
   --set ingress.certificateArn=$(cd ../commitlab-infra && terraform output -raw acm_certificate_arn)
 
 # Return to root

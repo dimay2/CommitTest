@@ -1,5 +1,5 @@
 frontend:
-  image: "lab-frontend:18-alpine" # Overridden by CLI
+  image: "lab-frontend:3.11-slim" # Overridden by CLI
   replicas: 1
   version: "1.0.0"
 

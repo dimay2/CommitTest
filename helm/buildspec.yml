@@ -14,26 +14,27 @@ phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
-      - REPO_URI=$ECR_REPO_URL
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - REGISTRY_URL="$ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY_URL
   build:
     commands:
       - echo Build started on `date`
-      - echo Building the Docker image...
-      - cd app/frontend
-      - docker build -t $REPO_URI:latest .
-      - docker tag $REPO_URI:latest $REPO_URI:$IMAGE_TAG
+      - echo Building Backend...
+      - cd app/backend
+      - docker build -t $REGISTRY_URL/lab-backend:3.11-slim .
+      - echo Building Frontend...
+      - cd ../frontend
+      - docker build -t $REGISTRY_URL/lab-frontend:3.11-slim .
   post_build:
     commands:
       - echo Build completed on `date`
       - echo Pushing the Docker images...
-      - docker push $REPO_URI:latest
-      - docker push $REPO_URI:$IMAGE_TAG
+      - docker push $REGISTRY_URL/lab-backend:3.11-slim
+      - docker push $REGISTRY_URL/lab-frontend:3.11-slim
       - echo Updating kubeconfig...
       - aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_DEFAULT_REGION
       - echo Deploying to EKS...
       - cd ../../helm
-      # We upgrade the Helm release, overriding the image tag with the one we just built
-      - helm upgrade lab-app . --set frontend.image=$REPO_URI:$IMAGE_TAG --reuse-values
+      # Upgrade Helm release ensuring specific tags are used
+      - helm upgrade lab-app . --set backend.image=$REGISTRY_URL/lab-backend:3.11-slim --set frontend.image=$REGISTRY_URL/lab-frontend:3.11-slim --reuse-values

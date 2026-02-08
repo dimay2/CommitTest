@@ -36,7 +36,7 @@ public.ecr.aws/eks/aws-load-balancer-controller:v2.6.2:aws-load-balancer-control
 # These are your custom application images (built locally first)
 # Keep them here for reference; mirror after building
 python:3.11-slim:lab-backend
-node:18-alpine:lab-frontend
+python:3.11-slim:lab-frontend
 
 # ============================================================================
 # Optional: Additional base images or utilities
