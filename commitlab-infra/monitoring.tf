@@ -1,3 +1,5 @@
+data "aws_ecr_authorization_token" "token" {}
+
 # 1. Metrics Server (Required for Fargate & Dashboard to see CPU/RAM)
 resource "helm_release" "metrics_server" {
   name             = "metrics-server"
@@ -30,6 +32,8 @@ resource "helm_release" "kubernetes_dashboard" {
   chart      = var.kubernetes_dashboard_chart
   version    = "7.3.2"
   namespace  = "monitoring"
+  repository_username = data.aws_ecr_authorization_token.token.user_name
+  repository_password = data.aws_ecr_authorization_token.token.password
 
   # Wait for Metrics Server to be ready first
   depends_on = [helm_release.metrics_server]
