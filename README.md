@@ -101,6 +101,7 @@ fi
 * `helm/` — Helm chart for the application deployment.
 * `commitlab-infra/charts/` — Vendored Helm charts for air-gapped installation.
 * `scripts/` — Utility scripts including `mirror-images.sh` for mirroring container images to private ECR.
+* `scripts/vendor-charts.sh` — Script to download Helm charts locally.
 * `.github/mirror-images.txt` — Image manifest for the mirroring script.
 * `update-dns.sh` — **Bridge Script** to update Route53 in this air-gapped environment.
 * `buildspec.yml` — Instructions for AWS CodeBuild to build and deploy the app.
