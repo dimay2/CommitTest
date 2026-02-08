@@ -117,7 +117,7 @@ variable "kubernetes_dashboard_image" {
 variable "kubernetes_dashboard_chart_repo" {
   description = "Helm chart repository URL for Kubernetes Dashboard. Set to empty string to use a local chart archive."
   type        = string
-  default     = "https://kubernetes.github.io/dashboard/"
+  default     = ""
 }
 
 variable "kubernetes_dashboard_chart" {
