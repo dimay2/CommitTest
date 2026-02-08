@@ -30,7 +30,7 @@ resource "helm_release" "kubernetes_dashboard" {
   name       = "kubernetes-dashboard"
   repository = var.kubernetes_dashboard_chart_repo == "" ? "oci://${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com" : var.kubernetes_dashboard_chart_repo
   chart      = var.kubernetes_dashboard_chart
-  version    = "v2.7.0"
+  version    = "6.0.8"
   namespace  = "monitoring"
   repository_username = data.aws_ecr_authorization_token.token.user_name
   repository_password = data.aws_ecr_authorization_token.token.password
@@ -41,23 +41,14 @@ resource "helm_release" "kubernetes_dashboard" {
   # Images pulled from private ECR for air-gapped environment
   values = [
     <<-EOT
-    api:
-      image:
-        repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard-api
-        tag: 1.4.0
-    web:
-      image:
-        repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard-web
-        tag: 1.4.0
+    image:
+      repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard
+      tag: v2.7.0
     metricsScraper:
       enabled: true
       image:
         repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard-metrics-scraper
-        tag: 1.1.1
-    kong:
-      image:
-        repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kong
-        tag: 3.6
+        tag: v1.0.8
     EOT
   ]
 }
