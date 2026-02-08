@@ -204,6 +204,15 @@ Notes:
 - If your `aws_codebuild_project` uses `vpc_config` (as this repo does), AWS validates the referenced subnets and security groups at create time — Terraform will need the `ec2:Describe*` permissions to successfully create the CodeBuild project.
 
 
+### 3.6 Vendor Helm Charts (Required)
+
+The Terraform configuration relies on local Helm charts located in `commitlab-infra/charts/`. You must run the vendoring script to download these charts before provisioning infrastructure.
+
+```bash
+chmod +x scripts/vendor-charts.sh
+./scripts/vendor-charts.sh
+```
+
 4. **Initialize and Apply Terraform:**
 Navigate to the infrastructure directory and provision the resources.
 **Note:** This step can take 15-20 minutes.
