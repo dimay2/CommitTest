@@ -513,6 +513,28 @@ aws ecr get-login-password --region $AWS_REGION | kubectl create secret docker-r
 
 ---
 
+## Configure CoreDNS for Fargate
+
+By default, CoreDNS is tainted to run only on EC2 nodes. Since this cluster uses **Fargate**, you must remove the compute-type annotation to allow CoreDNS pods to run on Fargate:
+
+```bash
+# Remove the EC2-only compute-type annotation from CoreDNS
+kubectl patch deployment coredns \
+  -n kube-system \
+  --type json \
+  -p='[{"op": "remove", "path": "/spec/template/metadata/annotations/eks.amazonaws.com~1compute-type"}]'
+
+# Restart the CoreDNS deployment to apply the changes
+kubectl rollout restart deployment coredns -n kube-system
+
+# Verify CoreDNS pods are running on Fargate
+kubectl get pods -n kube-system -l k8s-app=kube-dns -o wide
+```
+
+**Expected output:** CoreDNS pods should transition to `Running` state and show Fargate as the compute provider.
+
+---
+
 # Install AWS Load Balancer Controller
 
 We need to install the controller and ensure it uses the IAM Role created by Terraform (`commitlab-cluster-alb-controller`).
