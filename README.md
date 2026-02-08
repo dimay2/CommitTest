@@ -283,15 +283,15 @@ aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --
 
 # Build and push Backend
 cd app/backend
-docker build -t lab-backend:latest .
-docker tag lab-backend:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:latest
-docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:latest
+docker build -t lab-backend:3.11-slim .
+docker tag lab-backend:3.11-slim $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:3.11-slim
+docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:3.11-slim
 
 # Build and push Frontend
 cd ../frontend
-docker build -t lab-frontend:latest .
-docker tag lab-frontend:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:latest
-docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:latest
+docker build -t lab-frontend:18-alpine .
+docker tag lab-frontend:18-alpine $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:18-alpine
+docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:18-alpine
 
 # Return to root
 cd ../../
@@ -559,8 +559,8 @@ kubectl create secret generic backend-secrets \
 
 cd helm
 helm install lab-app . \
-  --set backend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:latest \
-  --set frontend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:latest \
+  --set backend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:3.11-slim \
+  --set frontend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:18-alpine \
   --set ingress.certificateArn=$(cd ../commitlab-infra && terraform output -raw acm_certificate_arn)
 
 # Return to root

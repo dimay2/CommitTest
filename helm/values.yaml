@@ -1,12 +1,12 @@
-backend:
-  image: "" # Injected by CLI
-  replicas: 1
-
 frontend:
-  image: "" # Injected by CLI
+  image: "lab-frontend:18-alpine" # Overridden by CLI
   replicas: 1
-  version: "v1.0.0"
+  version: "1.0.0"
+
+backend:
+  image: "lab-backend:3.11-slim" # Overridden by CLI
+  replicas: 1
 
 ingress:
   host: "lab-commit-task.commit.local"
-  certificateArn: "" # Injected by CLI
+  certificateArn: "" # Overridden by CLI
