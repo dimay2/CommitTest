@@ -30,7 +30,7 @@ resource "helm_release" "kubernetes_dashboard" {
   name       = "kubernetes-dashboard"
   repository = var.kubernetes_dashboard_chart_repo == "" ? "oci://${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com" : var.kubernetes_dashboard_chart_repo
   chart      = var.kubernetes_dashboard_chart
-  version    = "1.4.0"
+  version    = "2.7.0"
   namespace  = "monitoring"
   repository_username = data.aws_ecr_authorization_token.token.user_name
   repository_password = data.aws_ecr_authorization_token.token.password

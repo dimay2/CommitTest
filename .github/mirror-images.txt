@@ -44,4 +44,4 @@ node:18-alpine:lab-frontend
 # Optional: Additional base images or utilities
 # ============================================================================
 # Uncomment/add as needed:
-# registry.k8s.io/coredns/coredns:v1.10.1:coredns
+registry.k8s.io/coredns/coredns:v1.10.1:coredns
