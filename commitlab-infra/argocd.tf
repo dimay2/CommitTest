@@ -19,7 +19,7 @@ resource "helm_release" "argocd" {
     # Global image override to ensure chart uses private ECR for quay.io/argoproj/argocd images
     global:
       image:
-        repository: ${var.argocd_global_image_repo != "" ? var.argocd_global_image_repo : ""}
+        repository: ${var.argocd_global_image_repo != "" ? var.argocd_global_image_repo : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-server"}
         tag: v2.9.8
 
     # Server (argocd-server)
@@ -56,6 +56,7 @@ resource "helm_release" "argocd" {
     dex:
       enabled: true
       image:
+        # Explicitly use argocd-dex-server from ECR (overrides global)
         repository: ${var.argocd_dex_image != "" ? var.argocd_dex_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-dex-server"}
         tag: v2.38.0
 
