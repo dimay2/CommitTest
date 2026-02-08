@@ -21,8 +21,8 @@ redis:7.0.14-alpine:argocd-redis
 # Kubernetes Monitoring Stack
 # ============================================================================
 registry.k8s.io/metrics-server/metrics-server:v0.6.4:metrics-server
-kubernetesui/dashboard-api:1.4.2:kubernetes-dashboard-api
-kubernetesui/dashboard-web:1.4.2:kubernetes-dashboard-web
+kubernetesui/dashboard-api:1.4.0:kubernetes-dashboard-api
+kubernetesui/dashboard-web:1.4.0:kubernetes-dashboard-web
 kubernetesui/dashboard-metrics-scraper:1.1.1:kubernetes-dashboard-metrics-scraper
 library/kong:3.6:kong
 
