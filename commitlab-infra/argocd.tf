@@ -53,7 +53,7 @@ resource "helm_release" "argocd" {
       enabled: true
       image:
         repository: ${var.argocd_dex_image != "" ? var.argocd_dex_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-dex-server"}
-        tag: v2.9.8
+        tag: v2.38.0
 
     # Notifications controller
     notifications:
@@ -65,7 +65,7 @@ resource "helm_release" "argocd" {
     redis:
       image:
         repository: ${var.argocd_redis_image != "" ? var.argocd_redis_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-redis"}
-        tag: latest
+        tag: 7.0.14-alpine
 
     EOT
   ]
