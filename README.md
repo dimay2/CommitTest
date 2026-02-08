@@ -9,7 +9,6 @@ This repository contains the Terraform infrastructure, Helm charts, and applicat
 - [Important: Private ECR image enforcement](#important-private-ecr-image-enforcement-for-air-gapped-eks)
 - [Build & push container images](#build--push-container-images)
 - [Mirror images for an air-gapped cluster](#mirror-images-for-an-air-gapped-cluster-private-ecr)
-- [Install AWS Load Balancer Controller](#install-aws-load-balancer-controller)
 - [Deploy application (Helm)](#deploy-application-helm)
 - [Configure Internal DNS (Crucial)](#configure-internal-dns-crucial)
 - [CI/CD Pipeline (Triggering from GitHub Code)](#cicd-pipeline-triggering-from-github-code)
@@ -95,7 +94,7 @@ fi
 
 ## Repository layout
 
-* `commitlab-infra/` — Terraform for **Strictly Private** networking, EKS v1.30, ArgoCD, Monitoring, RDS, and Route53 Private Zone.
+* `commitlab-infra/` — Terraform for **Strictly Private** networking, EKS v1.30, AWS Load Balancer Controller, ArgoCD, Monitoring, RDS, and Route53 Private Zone.
 * `app/backend/` — Backend application and Dockerfile.
 * `app/frontend/` — Frontend application and Dockerfile.
 * `helm/` — Helm chart for the application deployment.
@@ -236,6 +235,7 @@ The Terraform configuration is pre-configured to pull all Helm chart images from
 
 - `argocd.tf` → ArgoCD components pull from private ECR
 - `monitoring.tf` → Metrics Server and Kubernetes Dashboard pull from private ECR
+- `alb-controller.tf` → AWS Load Balancer Controller pulls from private ECR
 - All pod images default to: `ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/image-name:tag`
 
 **Before running `terraform apply` (or immediately after):**
@@ -542,28 +542,6 @@ kubectl get pods -n kube-system -l k8s-app=kube-dns -o wide
 **Expected output:** CoreDNS pods should transition to `Running` state and show Fargate as the compute provider.
 
 ---
-
-# Install AWS Load Balancer Controller
-
-We need to install the controller and ensure it uses the IAM Role created by Terraform (`commitlab-cluster-alb-controller`).
-
-```bash
-helm repo add eks https://aws.github.io/eks-charts
-helm repo update
-
-# 1. Get the IAM Role ARN created by Terraform
-ALB_ROLE_ARN=$(aws iam get-role --role-name commitlab-cluster-alb-controller --query Role.Arn --output text)
-echo "Attaching Service Account to Role: $ALB_ROLE_ARN"
-
-# 2. Install Controller with Service Account creation enabled
-helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-  -n kube-system \
-  --set clusterName=$CLUSTER_NAME \
-  --set serviceAccount.create=true \
-  --set serviceAccount.name=aws-load-balancer-controller \
-  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$ALB_ROLE_ARN
-
-```
 
 ## Deploy application (Helm)
 
