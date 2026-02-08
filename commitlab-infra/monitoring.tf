@@ -41,20 +41,23 @@ resource "helm_release" "kubernetes_dashboard" {
   # Images pulled from private ECR for air-gapped environment
   values = [
     <<-EOT
-    app:
+    api:
       image:
-        repository: ${var.kubernetes_dashboard_image != "" ? var.kubernetes_dashboard_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard"}
-        tag: v2.7.0
-    nginx:
-      enabled: false
-    cert-manager:
-      enabled: false
+        repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard-api
+        tag: v1.4.2
+    web:
+      image:
+        repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard-web
+        tag: v1.4.2
     metricsScraper:
       enabled: true
-    resources:
-      requests:
-        cpu: 100m
-        memory: 200Mi
+      image:
+        repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kubernetes-dashboard-metrics-scraper
+        tag: v1.1.1
+    kong:
+      image:
+        repository: ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/kong
+        tag: 3.6
     EOT
   ]
 }

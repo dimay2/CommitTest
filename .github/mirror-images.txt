@@ -7,13 +7,13 @@
 # 3. All images will be pushed to your private ECR with same tags
 
 # ============================================================================
-# ArgoCD Components (v2.9.8) — update versions if using different Helm chart
+# ArgoCD Components (v2.10.6) — update versions if using different Helm chart
 # ============================================================================
-quay.io/argoproj/argocd:v2.9.8:argocd-server
-quay.io/argoproj/argocd:v2.9.8:argocd-repo-server
-quay.io/argoproj/argocd:v2.9.8:argocd-application-controller
-quay.io/argoproj/argocd:v2.9.8:argocd-applicationset-controller
-quay.io/argoproj/argocd:v2.9.8:argocd-notifications-controller
+quay.io/argoproj/argocd:v2.10.6:argocd-server
+quay.io/argoproj/argocd:v2.10.6:argocd-repo-server
+quay.io/argoproj/argocd:v2.10.6:argocd-application-controller
+quay.io/argoproj/argocd:v2.10.6:argocd-applicationset-controller
+quay.io/argoproj/argocd:v2.10.6:argocd-notifications-controller
 dexidp/dex:v2.38.0:argocd-dex-server
 redis:7.0.14-alpine:argocd-redis
 
@@ -21,7 +21,10 @@ redis:7.0.14-alpine:argocd-redis
 # Kubernetes Monitoring Stack
 # ============================================================================
 registry.k8s.io/metrics-server/metrics-server:v0.6.4:metrics-server
-kubernetesui/dashboard:v2.7.0:kubernetes-dashboard
+kubernetesui/dashboard-api:v1.4.2:kubernetes-dashboard-api
+kubernetesui/dashboard-web:v1.4.2:kubernetes-dashboard-web
+kubernetesui/dashboard-metrics-scraper:v1.1.1:kubernetes-dashboard-metrics-scraper
+library/kong:3.6:kong
 
 # ============================================================================
 # AWS Load Balancer Controller

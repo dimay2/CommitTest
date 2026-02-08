@@ -20,14 +20,14 @@ resource "helm_release" "argocd" {
     global:
       image:
         repository: ${var.argocd_global_image_repo != "" ? var.argocd_global_image_repo : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-server"}
-        tag: v2.9.8
+        tag: v2.10.6
 
     # Server (argocd-server)
     server:
       replicas: 1
       image:
         repository: ${var.argocd_server_image != "" ? var.argocd_server_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-server"}
-        tag: v2.9.8
+        tag: v2.10.6
       extraArgs:
         - --insecure
 
@@ -36,21 +36,21 @@ resource "helm_release" "argocd" {
       replicas: 1
       image:
         repository: ${var.argocd_repo_server_image != "" ? var.argocd_repo_server_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-repo-server"}
-        tag: v2.9.8
+        tag: v2.10.6
 
     # Application Controller (Chart key is 'controller')
     controller:
       replicas: 1
       image:
         repository: ${var.argocd_application_controller_image != "" ? var.argocd_application_controller_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-application-controller"}
-        tag: v2.9.8
+        tag: v2.10.6
 
     # ApplicationSet controller
     applicationSet:
       replicas: 1
       image:
         repository: ${var.argocd_applicationset_image != "" ? var.argocd_applicationset_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-applicationset-controller"}
-        tag: v2.9.8
+        tag: v2.10.6
 
     # Dex (SSO)
     dex:
@@ -64,7 +64,7 @@ resource "helm_release" "argocd" {
     notifications:
       image:
         repository: ${var.argocd_notifications_image != "" ? var.argocd_notifications_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-notifications-controller"}
-        tag: v2.9.8
+        tag: v2.10.6
 
     # Redis (argocd-redis)
     redis:
