@@ -37,5 +37,6 @@ resource "aws_instance" "windows_jumpbox" {
   instance_type          = "t3.medium"
   subnet_id              = module.vpc.private_subnets[0]
   iam_instance_profile   = aws_iam_instance_profile.ssm_profile.name
+  vpc_security_group_ids = [aws_security_group.ec2.id]
   tags = { Name = "${var.app_name}-windows-jumpbox" }
 }
