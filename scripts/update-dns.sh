@@ -10,8 +10,8 @@ REGION="eu-north-1"
 
 echo "--> 1. Reading Infrastructure Details..."
 # We fetch the Cluster Name and Zone ID from Terraform outputs
-CLUSTER_NAME=$(terraform -chdir=commitlab-infra output -raw cluster_name)
-ZONE_ID=$(terraform -chdir=commitlab-infra output -raw hosted_zone_id)
+CLUSTER_NAME=$(terraform -chdir=/home/cloudshell-user/CommitTest/commitlab-infra output -raw cluster_name)
+ZONE_ID=$(terraform -chdir=/home/cloudshell-user/CommitTest/commitlab-infra output -raw hosted_zone_id)
 
 if [ -z "$CLUSTER_NAME" ] || [ -z "$ZONE_ID" ]; then
   echo "Error: Terraform outputs are missing. Did you run 'terraform apply'?"

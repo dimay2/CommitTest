@@ -26,6 +26,18 @@ module "eks" {
   enable_cluster_creator_admin_permissions = true
   authentication_mode = "API_AND_CONFIG_MAP"
 
+  # Fix: Allow Fargate Pods to communicate with each other and receive traffic from ALB
+  cluster_security_group_additional_rules = {
+    ingress_vpc = {
+      description = "Allow all ingress traffic from VPC CIDR (ALB and Pods)"
+      protocol    = "-1"
+      from_port   = 0
+      to_port     = 0
+      type        = "ingress"
+      cidr_blocks = [module.vpc.vpc_cidr_block]
+    }
+  }
+
   # Updated Fargate Profile to include 'argocd'
   fargate_profiles = {
     default = {
