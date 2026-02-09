@@ -45,4 +45,15 @@ resource "helm_release" "aws_load_balancer_controller" {
     name  = "image.tag"
     value = "v2.6.2"
   }
+
+  # Air-gapped: Disable WAF and Shield to prevent timeouts (no internet access)
+  set {
+    name  = "enableWaf"
+    value = "false"
+  }
+
+  set {
+    name  = "enableShield"
+    value = "false"
+  }
 }
