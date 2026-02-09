@@ -75,7 +75,8 @@ locals {
     "ec2messages",          # SSM Agent (Jumpbox)
     "ssmmessages",          # SSM Session Manager (Jumpbox)
     "ec2",                  # Needed for ALB Controller to discover subnets
-    "elasticloadbalancing"  # Needed for ALB Controller to create ALBs
+    "elasticloadbalancing", # Needed for ALB Controller to create ALBs
+    "acm"                   # Needed for ALB Controller to validate SSL Certs
   ]
 }
 
