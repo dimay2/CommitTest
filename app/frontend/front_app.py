@@ -4,7 +4,7 @@ import os
 
 app = Flask(__name__)
 BACKEND_URL = os.environ.get('BACKEND_URL')
-APP_VERSION = os.environ.get('APP_VERSION', 'v1.0.0')
+APP_VERSION = os.environ.get('APP_VERSION', 'v1.0.1')
 
 @app.route('/')
 def home():

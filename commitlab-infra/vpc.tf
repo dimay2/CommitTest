@@ -41,6 +41,21 @@ resource "aws_security_group" "vpce" {
   }
 }
 
+# Security Group for EC2 Instances (Jumpbox)
+# Required to allow outbound traffic to VPC Endpoints (SSM, ECR, S3)
+resource "aws_security_group" "ec2" {
+  name        = "${var.app_name}-ec2-sg"
+  description = "Allow outbound traffic for EC2"
+  vpc_id      = module.vpc.vpc_id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 # S3 Gateway (Required for pulling container layers)
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = module.vpc.vpc_id
