@@ -28,6 +28,7 @@ metadata:
     # Optional: Good practice to ensure healthy targets before routing
     alb.ingress.kubernetes.io/healthcheck-path: /
 spec:
+  ingressClassName: alb
   rules:
     - host: {{ .Values.ingress.host }}
       http:
