@@ -6,11 +6,17 @@ app = Flask(__name__)
 
 @app.route('/api/data')
 def get_data():
+    db_host = os.environ.get('DB_HOST')
+    db_pass = os.environ.get('DB_PASS')
+
+    if not db_host:
+        return jsonify({"error": "DB_HOST environment variable is missing"}), 500
+
     try:
         conn = mysql.connector.connect(
-            host=os.environ.get('DB_HOST'),
+            host=db_host,
             user='adminuser',
-            password=os.environ.get('DB_PASS'),
+            password=db_pass,
             database='labdb'
         )
         cursor = conn.cursor()
