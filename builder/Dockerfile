@@ -1,4 +1,4 @@
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023
+FROM amazonlinux:2023
 
 # Install Docker, Git, and build tools
 RUN dnf update -y && \
