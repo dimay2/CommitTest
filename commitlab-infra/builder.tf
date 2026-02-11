@@ -40,3 +40,21 @@ resource "null_resource" "build_and_push_builder" {
 output "builder_image_url" {
   value = "${aws_ecr_repository.codebuild_builder.repository_url}:latest"
 }
+
+# 3. Mirror images to private ECR
+# This ensures all images defined in mirror-images.txt are present in the private ECR
+resource "null_resource" "mirror_images" {
+  triggers = {
+    manifest_hash = filemd5("${path.module}/../.github/mirror-images.txt")
+    script_hash   = filemd5("${path.module}/../scripts/mirror-images.sh")
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<EOT
+      export AWS_REGION="${data.aws_region.current.name}"
+      chmod +x ${path.module}/../scripts/mirror-images.sh
+      ${path.module}/../scripts/mirror-images.sh ${path.module}/../.github/mirror-images.txt
+    EOT
+  }
+}

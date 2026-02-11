@@ -46,3 +46,7 @@ registry.k8s.io/coredns/coredns:v1.10.1:coredns
 
 # Builder Base Image
 public.ecr.aws/amazonlinux/amazonlinux:2023:amazonlinux
+
+# Application Base Images (for Air-Gapped Builds)
+python:3.9-slim:python
+python:3.11-slim:python
