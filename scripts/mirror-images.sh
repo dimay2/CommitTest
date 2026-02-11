@@ -141,6 +141,24 @@ get_ecr_credentials() {
   return 0
 }
 
+# Ensure ECR repository exists
+ensure_repo_exists() {
+  local repo_name="$1"
+  
+  # Check if repo exists
+  if ! aws ecr describe-repositories --repository-names "$repo_name" --region "$AWS_REGION" >/dev/null 2>&1; then
+    log_info "Repository $repo_name not found. Creating..."
+    if aws ecr create-repository --repository-name "$repo_name" --region "$AWS_REGION" >/dev/null 2>&1; then
+      log_success "Created repository: $repo_name"
+      return 0
+    else
+      log_error "Failed to create repository: $repo_name"
+      return 1
+    fi
+  fi
+  return 0
+}
+
 # Retry function for skopeo copy (via Docker container - no -it flags for scripts)
 retry_copy() {
   local source="$1"
@@ -212,6 +230,12 @@ mirror_images() {
     if aws ecr describe-images --repository-name "$target_repo" --image-ids imageTag="$tag" --region "$AWS_REGION" >/dev/null 2>&1; then
       log_success "Image $target_repo:$tag already exists in ECR. Skipping."
       ((successful++))
+      continue
+    fi
+
+    # Ensure repository exists
+    if ! ensure_repo_exists "$target_repo"; then
+      ((failed++))
       continue
     fi
 
