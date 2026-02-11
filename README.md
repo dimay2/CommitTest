@@ -554,14 +554,14 @@ Deploy the application using the local Helm chart. **This chart provisions the f
 ```bash
 # Create Kubernetes secret for DB credentials
 kubectl create secret generic backend-secrets \
-  --from-literal=db-host=$(cd commitlab-infra && terraform output -raw rds_endpoint) \
+  --from-literal=db-host=$(cd ~/CommitTest/commitlab-infra && terraform output -raw rds_endpoint) \
   --from-literal=db-password=$TF_VAR_db_password
 
 cd helm
 helm install lab-app . \
   --set backend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-backend:3.11-slim \
   --set frontend.image=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/lab-frontend:3.11-slim \
-  --set ingress.certificateArn=$(cd ../commitlab-infra && terraform output -raw acm_certificate_arn)
+  --set ingress.certificateArn=$(cd ~/CommitTest/commitlab-infra && terraform output -raw acm_certificate_arn)
 
 # Return to root
 cd ..
