@@ -2,7 +2,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2023
 
 # Install Docker, Git, and build tools
 RUN dnf update -y && \
-    dnf install -y docker git unzip tar gzip && \
+    dnf install -y docker git unzip tar gzip openssl && \
     dnf clean all
 
 # Install AWS CLI v2

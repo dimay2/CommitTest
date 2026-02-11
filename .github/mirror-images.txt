@@ -43,3 +43,6 @@ python:3.11-slim:lab-frontend
 # ============================================================================
 # Uncomment/add as needed:
 registry.k8s.io/coredns/coredns:v1.10.1:coredns
+
+# Builder Base Image
+public.ecr.aws/amazonlinux/amazonlinux:2023:amazonlinux
