@@ -17,10 +17,10 @@ phases:
       - echo Build started on `date`
       - echo Building Backend...
       - cd app/backend
-      - docker build -t $REGISTRY_URL/lab-backend:3.11-slim .
+      - docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $REGISTRY_URL/lab-backend:3.11-slim .
       - echo Building Frontend...
       - cd ../frontend
-      - docker build -t $REGISTRY_URL/lab-frontend:3.11-slim .
+      - docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $REGISTRY_URL/lab-frontend:3.11-slim .
   post_build:
     commands:
       - echo Build completed on `date`
