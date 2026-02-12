@@ -97,7 +97,7 @@ resource "aws_codebuild_project" "app_build" {
     compute_type                = "BUILD_GENERAL1_SMALL"
     image                       = "${aws_ecr_repository.codebuild_builder.repository_url}:latest"
     type                        = "LINUX_CONTAINER"
-    image_pull_credentials_type = "CODEBUILD"
+    image_pull_credentials_type = "SERVICE_ROLE"
     privileged_mode             = true # Required for Docker
 
     environment_variable {
