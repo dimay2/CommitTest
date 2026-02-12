@@ -4,8 +4,7 @@ phases:
   install:
     commands:
       - echo "Checking Docker installation..."
-      - which dockerd
-      - dockerd --version
+      - /usr/bin/dockerd --version
       - echo "Checking System info..."
       - uname -a
       - cat /proc/filesystems

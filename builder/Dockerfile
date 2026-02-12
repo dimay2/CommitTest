@@ -3,7 +3,7 @@ FROM ${REGISTRY_URL}/amazonlinux:2023
 
 # Install Docker, Git, and build tools
 RUN dnf update -y && \
-    dnf install -y docker git unzip tar gzip openssl python3-pip && \
+    dnf install -y docker git unzip tar gzip openssl python3-pip which && \
     dnf clean all
 
 # Install AWS CLI v2
@@ -50,4 +50,4 @@ RUN mkdir -p /dependencies/frontend && \
 RUN ls -F /dependencies/backend/
 
 # Force image update
-ENV BUILD_DATE="2026-02-12-debug-2"
+ENV BUILD_DATE="2026-02-12-debug-3"
