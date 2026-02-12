@@ -3,7 +3,7 @@ FROM ${REGISTRY_URL}/amazonlinux:2023
 
 # Install Docker, Git, and build tools
 RUN dnf update -y && \
-    dnf install -y docker git unzip tar gzip openssl && \
+    dnf install -y docker git unzip tar gzip openssl python3-pip && \
     dnf clean all
 
 # Install AWS CLI v2
@@ -22,3 +22,26 @@ RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/s
     chmod 700 get_helm.sh && \
     ./get_helm.sh && \
     rm get_helm.sh
+
+# Download Python dependencies for air-gapped application builds
+# Backend Dependencies
+RUN mkdir -p /dependencies/backend && \
+    pip3 download -d /dependencies/backend \
+    flask \
+    mysql-connector-python \
+    --platform manylinux2014_x86_64 \
+    --only-binary=:all: \
+    --python-version 3.11 \
+    --implementation cp \
+    --abi cp311
+
+# Frontend Dependencies
+RUN mkdir -p /dependencies/frontend && \
+    pip3 download -d /dependencies/frontend \
+    flask \
+    requests \
+    --platform manylinux2014_x86_64 \
+    --only-binary=:all: \
+    --python-version 3.11 \
+    --implementation cp \
+    --abi cp311
