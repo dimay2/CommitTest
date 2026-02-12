@@ -3,12 +3,6 @@ version: 0.2
 phases:
   install:
     commands:
-      - echo "Checking Docker installation..."
-      - /usr/bin/dockerd --version
-      - echo "Checking System info..."
-      - uname -a
-      - cat /proc/filesystems
-      - df -hT
       - echo "Starting Docker daemon..."
       - nohup /usr/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=vfs &
       - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
@@ -18,6 +12,7 @@ phases:
       - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
       - REGISTRY_URL="$ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY_URL
+      - export IMAGE_TAG=build-${CODEBUILD_BUILD_NUMBER}
   build:
     commands:
       - echo Build started on `date`
@@ -27,18 +22,18 @@ phases:
       - ls -F /dependencies/backend/ || echo "Dependencies not found!"
       - mkdir -p packages
       - cp -r /dependencies/backend/. packages/
-      - docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $REGISTRY_URL/lab-backend:3.11-slim .
+      - docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $REGISTRY_URL/lab-backend:$IMAGE_TAG .
       - echo Building Frontend...
       - cd ../frontend
       - mkdir -p packages
       - cp -r /dependencies/frontend/. packages/
-      - docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $REGISTRY_URL/lab-frontend:3.11-slim .
+      - docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $REGISTRY_URL/lab-frontend:$IMAGE_TAG .
   post_build:
     commands:
       - echo Build completed on `date`
       - echo Pushing the Docker images...
-      - docker push $REGISTRY_URL/lab-backend:3.11-slim
-      - docker push $REGISTRY_URL/lab-frontend:3.11-slim
+      - docker push $REGISTRY_URL/lab-backend:$IMAGE_TAG
+      - docker push $REGISTRY_URL/lab-frontend:$IMAGE_TAG
       - echo Updating kubeconfig...
       - aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_DEFAULT_REGION
       - echo Verifying secrets...
@@ -46,4 +41,4 @@ phases:
       - echo Deploying to EKS...
       - cd ../../helm
       # Upgrade Helm release ensuring specific tags are used
-      - helm upgrade lab-app . --set backend.image=$REGISTRY_URL/lab-backend:3.11-slim --set frontend.image=$REGISTRY_URL/lab-frontend:3.11-slim --reuse-values
+      - helm upgrade lab-app . --set backend.image=$REGISTRY_URL/lab-backend:$IMAGE_TAG --set frontend.image=$REGISTRY_URL/lab-frontend:$IMAGE_TAG --reuse-values
