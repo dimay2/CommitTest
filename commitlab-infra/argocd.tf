@@ -15,6 +15,10 @@ resource "helm_release" "argocd" {
     redis-ha:
       enabled: false
 
+    configs:
+      params:
+        "server.insecure": "true"
+
     # Global image override to ensure chart uses private ECR for quay.io/argoproj/argocd images
     global:
       image:
@@ -24,8 +28,10 @@ resource "helm_release" "argocd" {
     # Server (argocd-server)
     server:
       replicas: 1
-      extraArgs:
-        - --insecure
+      service:
+        # Force the Service's HTTPS port (443) to forward to the Pod's HTTP port (8080)
+        # This allows the ALB to talk to port 443 on the Service, but reach the insecure app.
+        targetPortHttps: 8080
 
       # --- ADD THIS INGRESS BLOCK ---
       ingress:
