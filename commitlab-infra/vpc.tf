@@ -84,7 +84,8 @@ locals {
     "ec2",                  # Needed for ALB Controller to discover subnets
     "elasticloadbalancing", # Needed for ALB Controller to create ALBs
     "acm",                  # Needed for ALB Controller to validate SSL Certs
-    "wafv2"                 # Required to prevent timeouts in air-gapped env
+    "wafv2",                # Required to prevent timeouts in air-gapped env
+    "eks"                   # Required for CodeBuild to access EKS API in private VPC
   ]
 }
 
