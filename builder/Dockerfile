@@ -1,4 +1,5 @@
-FROM amazonlinux:2023
+ARG REGISTRY_URL=docker.io/library
+FROM ${REGISTRY_URL}/amazonlinux:2023
 
 # Install Docker, Git, and build tools
 RUN dnf update -y && \

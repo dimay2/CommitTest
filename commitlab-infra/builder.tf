@@ -19,18 +19,21 @@ resource "null_resource" "build_and_push_builder" {
     dockerfile_hash = filemd5("${path.module}/../builder/Dockerfile")
   }
 
+  depends_on = [null_resource.mirror_images]
+
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
       ECR_URL="${aws_ecr_repository.codebuild_builder.repository_url}"
       REGION="${data.aws_region.current.name}"
+      REGISTRY_URL=$(echo "$ECR_URL" | cut -d'/' -f1)
       
       # Login to ECR
       aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URL
       
       # Build and Push
       cd ../builder
-      docker build -t $${ECR_URL}:latest .
+      docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $${ECR_URL}:latest .
       docker push $${ECR_URL}:latest
     EOT
   }
