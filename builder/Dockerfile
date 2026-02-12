@@ -50,4 +50,4 @@ RUN mkdir -p /dependencies/frontend && \
 RUN ls -F /dependencies/backend/
 
 # Force image update
-ENV BUILD_DATE="2026-02-12-debug"
+ENV BUILD_DATE="2026-02-12-debug-2"
