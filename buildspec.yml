@@ -3,8 +3,15 @@ version: 0.2
 phases:
   install:
     commands:
+      - echo "Checking Docker installation..."
+      - which dockerd
+      - dockerd --version
+      - echo "Checking System info..."
+      - uname -a
+      - cat /proc/filesystems
+      - df -hT
       - echo "Starting Docker daemon..."
-      - nohup /usr/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=overlay2 &
+      - nohup /usr/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=vfs &
       - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
   pre_build:
     commands:
