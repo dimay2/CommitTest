@@ -82,6 +82,6 @@ EOF
 update_record "app-ingress" "default" "lab-commit-task.commit.local"
 
 # Update ArgoCD DNS
-update_record "argocd-server" "argocd" "argocd.commit.local"
+update_record "argocd-server" "argocd" "argocd.commit.local" 
 
 echo "--> DNS Update Process Completed."
