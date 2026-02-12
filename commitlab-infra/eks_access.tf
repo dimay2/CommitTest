@@ -1,7 +1,7 @@
 # Fetch the CodeBuild IAM role. 
 # NOTE: Ensure the 'name' matches your actual CodeBuild service role name in IAM.
 data "aws_iam_role" "codebuild" {
-  name = "${var.app_name}-codebuild-service-role" 
+  name = "${var.app_name}-codebuild-role" 
 }
 
 # Allow CodeBuild to access the EKS Cluster
