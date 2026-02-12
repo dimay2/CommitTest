@@ -21,6 +21,8 @@ phases:
       - echo "Debug Checking Builder Image Version..."
       - cat /etc/os-release
       - printenv BUILD_DATE || echo "BUILD_DATE not set (Old Image)"
+      - echo "Debug Root Directory Structure"
+      - ls -F /
       - echo "Checking for dependencies..."
       - ls -F /dependencies/backend/ || echo "Dependencies not found!"
       - mkdir -p packages
