@@ -5,7 +5,7 @@ data "aws_iam_role" "codebuild" {
 }
 
 # Allow CodeBuild to access the EKS Cluster
-resource "aws_eks_access_entry" "codebuild" {
+resource "aws_eks_access_entry" "" {
   cluster_name      = var.cluster_name
   principal_arn     = data.aws_iam_role.codebuild.arn
   type              = "STANDARD"

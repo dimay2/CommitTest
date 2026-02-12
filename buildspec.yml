@@ -39,6 +39,6 @@ phases:
       - echo Verifying secrets...
       - "kubectl get secret backend-secrets >/dev/null || { echo \"Error: Secret 'backend-secrets' not found. Please create it as per README.\"; exit 1; }"
       - echo Deploying to EKS...
-      - cd helm
+      - cd $CODEBUILD_SRC_DIR/helm
       # Upgrade Helm release ensuring specific tags are used
       - helm upgrade lab-app . --set backend.image=$REGISTRY_URL/lab-backend:$IMAGE_TAG --set frontend.image=$REGISTRY_URL/lab-frontend:$IMAGE_TAG --reuse-values
