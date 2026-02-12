@@ -45,3 +45,6 @@ RUN mkdir -p /dependencies/frontend && \
     --python-version 3.11 \
     --implementation cp \
     --abi cp311
+
+# Verify dependencies exist during build
+RUN ls -R /dependencies

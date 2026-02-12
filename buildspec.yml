@@ -17,13 +17,15 @@ phases:
       - echo Build started on `date`
       - echo Building Backend...
       - cd app/backend
+      - echo "Checking for dependencies..."
+      - ls -F /dependencies/backend/ || echo "Dependencies not found!"
       - mkdir -p packages
-      - cp -r /dependencies/backend/* packages/
+      - cp -r /dependencies/backend/. packages/
       - docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $REGISTRY_URL/lab-backend:3.11-slim .
       - echo Building Frontend...
       - cd ../frontend
       - mkdir -p packages
-      - cp -r /dependencies/frontend/* packages/
+      - cp -r /dependencies/frontend/. packages/
       - docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $REGISTRY_URL/lab-frontend:3.11-slim .
   post_build:
     commands:
