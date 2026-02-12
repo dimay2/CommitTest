@@ -4,6 +4,7 @@ resource "helm_release" "argocd" {
   version          = "6.7.11" # Pinning a stable version
   namespace        = "argocd"
   create_namespace = true
+  force_update     = true
 
   # Wait for Fargate to spin up resources
   timeout = 600
@@ -49,6 +50,9 @@ resource "helm_release" "argocd" {
           alb.ingress.kubernetes.io/certificate-arn: ${aws_acm_certificate.argocd.arn}
         hosts:
           - argocd.commit.local
+        paths:
+          - /
+        pathType: Prefix
       # ------------------------------
 
       image:
