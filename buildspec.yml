@@ -3,9 +3,9 @@ version: 0.2
 phases:
   install:
     commands:
-      # In an air-gapped environment, tools (kubectl, helm) must be pre-installed
-      # in the custom CodeBuild image pulled from ECR.
-      - echo "Using pre-installed tools from the custom build image."
+      - echo "Starting Docker daemon..."
+      - nohup /usr/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=overlay2 &
+      - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
@@ -17,12 +17,6 @@ phases:
       - echo Build started on `date`
       - echo Building Backend...
       - cd app/backend
-      - echo "=== CURRENT CODEBUILD IMAGE $CODEBUILD_BUILD_IMAGE ==="
-      - echo "Debug Checking Builder Image Version..."
-      - cat /etc/os-release
-      - printenv BUILD_DATE || echo "BUILD_DATE not set (Old Image)"
-      - echo "Debug Root Directory Structure"
-      - ls -F /
       - echo "Checking for dependencies..."
       - ls -F /dependencies/backend/ || echo "Dependencies not found!"
       - mkdir -p packages
