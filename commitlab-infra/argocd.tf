@@ -24,11 +24,30 @@ resource "helm_release" "argocd" {
     # Server (argocd-server)
     server:
       replicas: 1
+      extraArgs:
+        - --insecure
+
+      # --- ADD THIS INGRESS BLOCK ---
+      ingress:
+        enabled: true
+        ingressClassName: alb
+        annotations:
+          alb.ingress.kubernetes.io/scheme: internal
+          alb.ingress.kubernetes.io/target-type: ip
+          # FIX: Tell ALB to talk HTTP to the insecure Pod
+          alb.ingress.kubernetes.io/backend-protocol: HTTP
+          # FIX: Health check must also be HTTP
+          alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+          alb.ingress.kubernetes.io/healthcheck-path: /healthz
+          alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+          alb.ingress.kubernetes.io/certificate-arn: ${aws_acm_certificate.argocd.arn}
+        hosts:
+          - argocd.commit.local
+      # ------------------------------
+
       image:
         repository: ${var.argocd_server_image != "" ? var.argocd_server_image : "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/argocd-server"}
         tag: v2.10.6
-      extraArgs:
-        - --insecure
 
     # Repo server
     repoServer:
