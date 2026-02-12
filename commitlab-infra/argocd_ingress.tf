@@ -33,7 +33,6 @@ resource "kubernetes_ingress_v1" "argocd" {
     name      = "argocd-server"
     namespace = "argocd"
     annotations = {
-      "kubernetes.io/ingress.class"                = "alb"
       "alb.ingress.kubernetes.io/scheme"           = "internal"
       "alb.ingress.kubernetes.io/target-type"      = "ip"
       "alb.ingress.kubernetes.io/backend-protocol" = "HTTPS"
@@ -44,7 +43,10 @@ resource "kubernetes_ingress_v1" "argocd" {
     }
   }
 
+  wait_for_load_balancer = true
+
   spec {
+    ingress_class_name = "alb"
     rule {
       host = "argocd.commit.local"
       http {
