@@ -48,7 +48,7 @@ resource "helm_release" "argocd" {
           alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
           alb.ingress.kubernetes.io/certificate-arn: ${aws_acm_certificate.argocd.arn}
         hosts:
-          - argocd.commit.local
+          - argocd.commit.local1
       # ------------------------------
 
       image:
