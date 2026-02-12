@@ -5,7 +5,6 @@ resource "tls_private_key" "argocd" {
 
 # Create a self-signed certificate
 resource "tls_self_signed_cert" "argocd" {
-  key_algorithm   = "RSA"
   private_key_pem = tls_private_key.argocd.private_key_pem
 
   subject {
