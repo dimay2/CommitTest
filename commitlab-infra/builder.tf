@@ -33,7 +33,9 @@ resource "null_resource" "build_and_push_builder" {
       
       # Build and Push
       cd ../builder
+      echo "=== BUILDING BUILDER IMAGE: $${ECR_URL}:latest ==="
       docker build --build-arg REGISTRY_URL=$REGISTRY_URL -t $${ECR_URL}:latest .
+      echo "=== PUSHING BUILDER IMAGE: $${ECR_URL}:latest ==="
       docker push $${ECR_URL}:latest
     EOT
   }

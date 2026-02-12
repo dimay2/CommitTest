@@ -47,4 +47,7 @@ RUN mkdir -p /dependencies/frontend && \
     --abi cp311
 
 # Verify dependencies exist during build
-RUN ls -R /dependencies
+RUN ls -F /dependencies/backend/
+
+# Force image update
+ENV BUILD_DATE="2026-02-12-debug"
