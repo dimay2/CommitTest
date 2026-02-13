@@ -1,4 +1,5 @@
 # Define the ArgoCD Application for the User Apps (Frontend/Backend)
+# This tells ArgoCD to watch the 'helm' folder in your repo and deploy it to the 'default' namespace.
 resource "kubernetes_manifest" "lab_app" {
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
