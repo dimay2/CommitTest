@@ -4,7 +4,8 @@
 1. [Solution Overview](#solution-overview)
 2. [Accessing the Environment](#1-accessing-the-environment)
 3. [How to Upgrade the Application](#2-how-to-upgrade-the-application)
-4. [Troubleshooting & Maintenance](#3-troubleshooting--maintenance)
+4. [Managing Private ECR Images](#4-managing-private-ecr-images)
+5. [Troubleshooting & Maintenance](#5-troubleshooting--maintenance)
 
 ## Solution Overview
 This project implements a secure, air-gapped Kubernetes environment on AWS EKS. It adheres to strict security requirements, ensuring no direct internet access for the cluster or the build pipeline.
@@ -16,12 +17,29 @@ This project implements a secure, air-gapped Kubernetes environment on AWS EKS. 
 *   **GitOps:** ArgoCD manages application synchronization.
 *   **Internal Access:** Services are exposed via Internal Application Load Balancers (ALB) and Route53 Private DNS.
 
+### Resource Identification
+All AWS resources provisioned by this project can be easily identified in the AWS Console using the tag `Environment=dimatest`.
+
 ## 1. Accessing the Environment
 Access to the environment is restricted to the **EC2 Windows Jumpbox**.
 
-### Prerequisites
-*   Connect to the Jumpbox using **AWS Systems Manager (Fleet Manager)** or RDP.
-*   All URLs below must be accessed from the browser inside the Jumpbox.
+### Connecting from Client PC (RDP via SSM)
+To access the EC2 browser, you must establish a secure tunnel to the Windows Jumpbox.
+
+1.  **Prerequisites:** Ensure AWS CLI and the [Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) are installed on your local machine.
+2.  **Start Tunnel:** Run the following command locally to forward the RDP port:
+    ```bash
+    # Retrieve Instance ID
+    INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=commitlab-app-windows-jumpbox" --query "Reservations[0].Instances[0].InstanceId" --output text)
+
+    # Start Port Forwarding (Local port 53389 -> Remote port 3389)
+    aws ssm start-session --target $INSTANCE_ID --document-name AWS-StartPortForwardingSession --parameters '{"portNumber":["3389"],"localPortNumber":["53389"]}'
+    ```
+3.  **Connect:** Open your RDP client and connect to `localhost:53389`.
+    *   **User:** `Administrator`
+    *   **Password:** Retrieve via AWS Console (EC2 > Connect > RDP Client > Get Password) using your PEM key.
+
+Once connected, open the web browser inside the remote desktop session to access internal services.
 
 ### Service URLs
 | Application | URL | Description |
@@ -67,7 +85,18 @@ To deploy a new version of the application, follow this Git-based workflow:
     *   Check the pipeline status in the AWS Console.
     *   Refresh the **Frontend Application** URL to see the update.
 
-## 3. Troubleshooting & Maintenance
+## 4. Managing Private ECR Images
+In this strictly private environment, the EKS cluster cannot pull images from public registries. You must mirror images to the private ECR.
+
+### How to Upgrade/Upload Packages
+1.  **Update Manifest:** Edit `.github/mirror-images.txt` to include the new image or version.
+2.  **Run Mirror Script:** Execute the following script from a machine with Internet access:
+    ```bash
+    ./scripts/mirror-images.sh .github/mirror-images.txt
+    ```
+3.  **Update Helm/App:** Update your Helm chart values or application deployment to reference the new image tag.
+
+## 5. Troubleshooting & Maintenance
 
 ### DNS Resolution
 If the `.local` domains are not resolving, the internal DNS records may need a refresh. Run the update script from the Jumpbox or CloudShell:
