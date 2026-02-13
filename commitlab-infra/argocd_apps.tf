@@ -28,6 +28,10 @@ resource "kubernetes_manifest" "lab_app" {
       }
     }
   }
-
+  # Required to resolve conflicts with ArgoCD controller
+  field_manager {
+    force_conflicts = true
+  }
+  
   depends_on = [helm_release.argocd]
 }
